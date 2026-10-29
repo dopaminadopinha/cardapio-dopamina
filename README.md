@@ -10,14 +10,14 @@ Cardápio para o link da bio do Instagram. O cliente só vê o cardápio; você 
 
 ## Como colocar no ar
 
-1. **Banco**: crie um projeto em [supabase.com](https://supabase.com). Em *SQL Editor*, cole e rode todo o `supabase/schema.sql`.
+1. **Banco**: já criado no projeto `cardapio-dopamina` do Supabase. Para recriar em outro projeto, rode todo o `supabase/schema.sql` no *SQL Editor*.
 2. **Seu login**: em *Authentication → Users → Add user*, crie seu usuário com e-mail e senha (marque *Auto confirm*). Depois, no *SQL Editor*:
    ```sql
    insert into public.menu_admins (user_id)
    select id from auth.users where email = 'seu-email@exemplo.com';
    ```
 3. **Bloqueie cadastros novos**: em *Authentication → Sign In / Providers*, desligue *Allow new users to sign up*.
-4. **Chaves**: em *Project Settings → API*, copie a URL do projeto e a chave *publishable* (ou *anon*) para `assets/config.js`. Essa chave pode ficar pública: quem protege os dados são as regras do banco.
+4. **Chaves**: já configuradas em `assets/config.js` (projeto `cardapio-dopamina`). A chave *publishable* pode ficar pública: quem protege os dados são as regras do banco.
 5. **Site**: na [Vercel](https://vercel.com), *Add New → Project*, importe este repositório e clique em *Deploy* (sem configurar nada). Coloque o endereço gerado na bio do Instagram.
 
 Para editar: abra `seu-endereco/admin.html` no celular e entre. Dica: use "Adicionar à tela de início" no navegador para virar um ícone de app.
