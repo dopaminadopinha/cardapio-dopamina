@@ -78,6 +78,7 @@ $$;
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -158,6 +159,9 @@ grant update on public.menu_settings to authenticated;
 grant insert, update, delete on public.menu_categories, public.menu_items to authenticated;
 grant select on public.menu_admins to authenticated;
 grant execute on function public.is_menu_admin() to anon, authenticated;
+-- Funções de gatilho não devem ser chamáveis pela API
+revoke execute on function public.touch_menu() from public, anon, authenticated;
+revoke execute on function public.set_updated_at() from public, anon, authenticated;
 
 -- Atualização em tempo real da página pública
 do $$
