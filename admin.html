@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2a0c49">
+  <meta name="robots" content="noindex">
+  <title>Editar cardápio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/admin.css">
+  <script type="module" src="assets/admin.js"></script>
+</head>
+<body class="admin-page">
+  <header class="admin-bar">
+    <strong>Editar cardápio</strong>
+    <div class="admin-bar-actions">
+      <a class="btn btn-ghost" href="./" target="_blank" rel="noopener">Ver cardápio</a>
+      <button id="logout" class="btn btn-ghost" type="button" hidden>Sair</button>
+    </div>
+  </header>
+
+  <section id="login-view" class="admin-view" hidden>
+    <form id="login-form" class="stack card-plain">
+      <h1>Entrar</h1>
+      <label class="field">E-mail
+        <input name="email" type="email" autocomplete="username" required>
+      </label>
+      <label class="field">Senha
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <p id="login-error" class="form-error" role="alert" hidden></p>
+      <button class="btn btn-gold" type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <section id="denied-view" class="admin-view" hidden>
+    <div class="stack card-plain">
+      <h1>Esta conta ainda não edita o cardápio</h1>
+      <p>Adicione o código abaixo na tabela <code>menu_admins</code> do Supabase e recarregue esta página.</p>
+      <code id="denied-id" class="code-block"></code>
+    </div>
+  </section>
+
+  <section id="editor-view" hidden>
+    <nav class="admin-tabs" aria-label="Áreas de edição">
+      <div id="admin-tabs" class="tabs-track"></div>
+    </nav>
+    <main id="editor" class="admin-view"></main>
+  </section>
+
+  <dialog id="item-dialog" class="sheet">
+    <form id="item-form" method="dialog" class="stack">
+      <h2 id="item-dialog-title">Editar item</h2>
+      <label class="field">Nome (em destaque)
+        <input name="name" required placeholder="Budweiser">
+      </label>
+      <label class="field">Detalhe
+        <input name="detail" placeholder="600ml, lata, dose…">
+      </label>
+      <label class="field">Descrição
+        <textarea name="description" rows="2" placeholder="Opcional. Ex.: gin, tônica e limão siciliano"></textarea>
+      </label>
+      <div class="field-row">
+        <label class="field">Preço (R$)
+          <input name="price" inputmode="decimal" required placeholder="0,00">
+        </label>
+        <label class="field">Preço promocional
+          <input name="promo_price" inputmode="decimal" placeholder="Opcional">
+        </label>
+      </div>
+      <div class="field-row">
+        <label class="field">Selo
+          <select name="badge">
+            <option value="">Nenhum</option>
+            <option value="mais_pedido">Mais pedido</option>
+            <option value="novo">Novo</option>
+            <option value="promo">Promo</option>
+          </select>
+        </label>
+        <label class="field">Aba
+          <select name="category_id"></select>
+        </label>
+      </div>
+      <label class="check"><input name="available" type="checkbox"> Disponível (desmarcado aparece como esgotado)</label>
+      <label class="check"><input name="visible" type="checkbox"> Mostrar no cardápio</label>
+      <p id="item-error" class="form-error" role="alert" hidden></p>
+      <div class="sheet-actions">
+        <button id="item-delete" class="btn btn-danger" type="button">Excluir item</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-gold" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,308 @@
+:root {
+  --plum: #3a1362;
+  --plum-deep: #2a0c49;
+  --plum-line: #5a2d8a;
+  --gold: #f8c21c;
+  --gold-soft: #ffe28a;
+  --lilac: #cbb6ee;
+  --white: #fff8ea;
+  --danger: #ff8a8a;
+  --font: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --spine: 30px;
+  --gutter: 20px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--plum);
+  color: var(--white);
+  font-family: var(--font);
+  line-height: 1.4;
+}
+
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* ---------- Página pública ---------- */
+
+.menu-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 60% at 0% 0%, #4a1a7c 0%, transparent 60%),
+    var(--plum);
+  padding-right: var(--spine);
+}
+
+.masthead {
+  padding: calc(36px + env(safe-area-inset-top)) var(--gutter) 18px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--lilac);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.masthead h1 {
+  margin: 0;
+  color: var(--gold);
+  font-size: clamp(2.4rem, 12vw, 3.6rem);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.tagline {
+  margin: 10px 0 0;
+  color: var(--lilac);
+  font-size: 0.92rem;
+}
+
+.notice {
+  margin: 4px var(--gutter) 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--gold);
+  color: var(--plum-deep);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--plum) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--plum-line);
+}
+
+.tabs-track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px var(--gutter);
+  scrollbar-width: none;
+}
+
+.tabs-track::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  flex: none;
+  padding: 8px 14px;
+  border: 1.5px solid var(--plum-line);
+  border-radius: 999px;
+  color: var(--gold-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--plum-deep);
+}
+
+.panel {
+  flex: 1;
+  width: 100%;
+  max-width: 560px;
+  padding: 28px var(--gutter) 40px;
+}
+
+.section-title {
+  margin: 0 0 18px;
+  color: var(--gold);
+  font-size: clamp(1.9rem, 9vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: 9px 0;
+}
+
+.is-entering .item {
+  animation: rise 0.35s both;
+}
+
+.is-entering .item:nth-child(2) { animation-delay: 0.03s; }
+.is-entering .item:nth-child(3) { animation-delay: 0.06s; }
+.is-entering .item:nth-child(4) { animation-delay: 0.09s; }
+.is-entering .item:nth-child(5) { animation-delay: 0.12s; }
+.is-entering .item:nth-child(n + 6) { animation-delay: 0.15s; }
+
+.item-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+}
+
+.item-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--gold);
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.item-name strong {
+  font-weight: 800;
+}
+
+.item-detail {
+  color: var(--gold-soft);
+  font-weight: 400;
+}
+
+.price {
+  flex: none;
+  color: var(--white);
+  font-size: 0.98rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.price-old {
+  margin-right: 6px;
+  color: var(--lilac);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.price-out {
+  color: var(--lilac);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.is-out .item-name {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.item-desc {
+  margin: 3px 0 0;
+  color: var(--lilac);
+  font-size: 0.82rem;
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--white);
+  color: var(--plum-deep);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  vertical-align: 2px;
+}
+
+.badge-promo {
+  background: var(--gold);
+}
+
+.badge-novo {
+  background: var(--lilac);
+}
+
+.state {
+  color: var(--lilac);
+}
+
+/* Lombada amarela na lateral, como no cardápio impresso */
+.spine {
+  position: fixed;
+  top: 96px;
+  right: 0;
+  z-index: 3;
+  width: var(--spine);
+  padding: 16px 0;
+  border-radius: 12px 0 0 12px;
+  background: var(--gold);
+  color: var(--plum-deep);
+  display: flex;
+  justify-content: center;
+}
+
+.spine:empty,
+.spine span:empty {
+  display: none;
+}
+
+.spine span {
+  writing-mode: vertical-rl;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-height: 60vh;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.colophon {
+  padding: 20px var(--gutter) calc(28px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--plum-line);
+  color: var(--lilac);
+  font-size: 0.72rem;
+}
+
+.colophon p {
+  margin: 0 0 6px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
