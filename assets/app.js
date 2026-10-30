@@ -81,58 +81,52 @@ function renderPanel(animate = false) {
     return;
   }
   els.spine.textContent = section.name;
-  const twoPrices = Boolean(section.price2_label);
-  const listClass = ['items', animate && 'is-entering', twoPrices && 'has-two-prices'].filter(Boolean).join(' ');
-  els.panel.replaceChildren(...[
+  els.panel.replaceChildren(
     h('h2', { class: 'section-title' }, section.name),
-    twoPrices
-      ? h('p', { class: 'price-head' },
-          h('span', { class: 'price-head-label' }, section.price_label || 'R$'),
-          h('span', { class: 'price-head-label' }, section.price2_label))
-      : null,
-    h('ul', { class: listClass }, section.items.map((item) => renderItem(item, twoPrices))),
-  ].filter(Boolean));
+    h('ul', { class: animate ? 'items is-entering' : 'items' }, section.items.map((item) => renderItem(item, section))),
+  );
 }
 
-function renderItem(item, twoPrices) {
-  const money = twoPrices ? (value) => formatPrice(value).replace(/^R\$\s?/, '') : formatPrice;
+function renderItem(item, section) {
   const promo = item.promo_price !== null && Number(item.promo_price) < Number(item.price);
-  const price = !item.available
-    ? h('span', { class: 'price price-out' }, 'Esgotado')
-    : promo
-      ? h('span', { class: 'price' },
-          h('s', { class: 'price-old' }, money(item.price)),
-          money(item.promo_price))
-      : h('span', { class: 'price' }, money(item.price));
+  const twoPrices = Boolean(section.price2_label);
+  const label = (text) => (twoPrices && text ? h('span', { class: 'price-label' }, text) : null);
 
-  const content = [
-    h('span', { class: 'item-line' },
-      h('span', { class: 'item-name' },
-        h('strong', {}, item.name),
-        item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
-        item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
-      ),
-      price,
-      twoPrices
-        ? h('span', { class: 'price' }, item.available && item.price2 !== null ? money(item.price2) : '')
-        : null,
+  const prices = !item.available
+    ? [h('span', { class: 'price price-out' }, 'Esgotado')]
+    : [
+        h('span', { class: 'price' },
+          label(section.price_label),
+          promo ? h('s', { class: 'price-old' }, formatPrice(item.price)) : null,
+          formatPrice(promo ? item.promo_price : item.price)),
+        twoPrices && item.price2 !== null
+          ? h('span', { class: 'price' }, label(section.price2_label), formatPrice(item.price2))
+          : null,
+      ];
+
+  const body = h('span', { class: 'item-body' },
+    h('span', { class: 'item-title' },
+      item.name,
+      item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
     ),
+    item.detail ? h('span', { class: 'item-detail' }, item.detail) : null,
     item.description ? h('span', { class: 'item-desc' }, item.description) : null,
-  ];
+    h('span', { class: 'item-prices' }, prices),
+  );
 
-  // Item sem foto fica só com o texto; com foto ganha a miniatura e abre a foto ao tocar.
+  // Sem foto: só o texto. Com foto: foto à direita e a linha inteira abre a foto grande.
   return h('li', { class: `item${item.available ? '' : ' is-out'}` },
     item.image_url
       ? h('button', {
           type: 'button',
-          class: 'item-button',
+          class: 'item-row',
           'aria-label': `Ver foto: ${item.name} ${item.detail}`.trim(),
           onclick: () => openPhoto(item),
         },
-          h('img', { class: 'item-thumb', src: item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
-          h('span', { class: 'item-body' }, content),
+          body,
+          h('img', { class: 'item-photo', src: item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
         )
-      : content,
+      : h('div', { class: 'item-row' }, body),
   );
 }
 
