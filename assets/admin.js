@@ -175,33 +175,9 @@ function renderCategoryView(category) {
 function renderItemCard(item, index, list) {
   const card = h('li', { class: `card${item.available ? '' : ' is-out'}${item.visible ? '' : ' is-hidden'}` });
 
-  const priceInput = h('input', {
-    class: 'price-input',
-    inputmode: 'decimal',
-    'aria-label': `Preço de ${item.name} ${item.detail}`.trim(),
-    value: formatPrice(item.price).replace(/^R\$\s?/, ''),
-    onfocus: (event) => event.target.select(),
-    onkeydown: (event) => {
-      if (event.key === 'Enter') event.target.blur();
-    },
-    onchange: async (event) => {
-      const input = event.target;
-      const price = parsePrice(input.value);
-      const previous = item.price;
-      if (price === null) {
-        input.value = formatPrice(previous).replace(/^R\$\s?/, '');
-        toast('Preço inválido. Use números, como 14,50.', true);
-        return;
-      }
-      item.price = price;
-      input.value = formatPrice(price).replace(/^R\$\s?/, '');
-      if (await update('menu_items', item.id, { price })) toast(`${item.name}: ${formatPrice(price)}`);
-      else {
-        item.price = previous;
-        input.value = formatPrice(previous).replace(/^R\$\s?/, '');
-      }
-    },
-  });
+  const category = state.categories.find((c) => c.id === item.category_id);
+  const priceInput = makePriceInput(item, 'price', category?.price_label);
+  const price2Input = category?.price2_label ? makePriceInput(item, 'price2', category.price2_label) : null;
 
   const availability = h('input', {
     type: 'checkbox',
@@ -233,7 +209,10 @@ function renderItemCard(item, index, list) {
           item.visible ? null : h('span', { class: 'pill' }, 'Oculto'),
         ),
       ),
-      h('label', { class: 'price-field' }, h('span', { 'aria-hidden': 'true' }, 'R$'), priceInput),
+      h('div', { class: 'price-fields' },
+        priceInput,
+        price2Input,
+      ),
     ),
     h('div', { class: 'card-actions' },
       h('label', { class: 'switch' }, availability, h('span', { class: 'switch-track', 'aria-hidden': 'true' }), 'Disponível'),
@@ -244,6 +223,47 @@ function renderItemCard(item, index, list) {
     ),
   );
   return card;
+}
+
+const plain = (value) => formatPrice(value).replace(/^R\$\s?/, '');
+
+// Campo de preço editável direto na lista. O segundo preço pode ficar vazio.
+function makePriceInput(item, key, label) {
+  const optional = key === 'price2';
+  const input = h('input', {
+    class: 'price-input',
+    inputmode: 'decimal',
+    placeholder: optional ? '—' : '0,00',
+    'aria-label': `${label || 'Preço'} de ${item.name} ${item.detail}`.trim(),
+    value: item[key] === null ? '' : plain(item[key]),
+    onfocus: (event) => event.target.select(),
+    onkeydown: (event) => {
+      if (event.key === 'Enter') event.target.blur();
+    },
+    onchange: async () => {
+      const previous = item[key];
+      const empty = input.value.trim() === '';
+      const value = empty && optional ? null : parsePrice(input.value);
+      const restore = () => (input.value = previous === null ? '' : plain(previous));
+      if (value === null && !(empty && optional)) {
+        restore();
+        toast('Preço inválido. Use números, como 14,50.', true);
+        return;
+      }
+      item[key] = value;
+      input.value = value === null ? '' : plain(value);
+      if (await update('menu_items', item.id, { [key]: value })) {
+        toast(value === null ? `${item.name}: ${label} removido` : `${item.name}: ${formatPrice(value)}`);
+      } else {
+        item[key] = previous;
+        restore();
+      }
+    },
+  });
+  return h('label', { class: 'price-field' },
+    label ? h('span', { class: 'price-field-label' }, label) : null,
+    h('span', { class: 'price-field-box' }, h('span', { 'aria-hidden': 'true' }, 'R$'), input),
+  );
 }
 
 function renderCategoriesView() {
@@ -295,6 +315,10 @@ function renderCategoriesView() {
             }
           },
         }),
+        h('div', { class: 'field-row label-row' },
+          labelInput(category, 'price_label', 'Nome do preço', 'Ex.: Individual (150g)'),
+          labelInput(category, 'price2_label', '2º preço (opcional)', 'Ex.: Inteira (450g)'),
+        ),
         h('div', { class: 'card-actions' },
           h('label', { class: 'switch' },
             h('input', {
@@ -340,6 +364,26 @@ function renderCategoriesView() {
       );
     })),
     addForm,
+  );
+}
+
+// Nomes das colunas de preço de uma aba. Com o 2º preço preenchido, a aba mostra duas colunas.
+function labelInput(category, key, label, placeholder) {
+  return h('label', { class: 'field' }, label,
+    h('input', {
+      value: category[key] ?? '',
+      placeholder,
+      onkeydown: (event) => {
+        if (event.key === 'Enter') event.target.blur();
+      },
+      onchange: async (event) => {
+        const value = event.target.value.trim();
+        if (await update('menu_categories', category.id, { [key]: value })) {
+          category[key] = value;
+          toast('Colunas de preço salvas');
+        } else event.target.value = category[key] ?? '';
+      },
+    }),
   );
 }
 
@@ -404,13 +448,26 @@ function openItem(item, categoryId) {
   f.promo_price.value = item?.promo_price !== null && item?.promo_price !== undefined
     ? formatPrice(item.promo_price).replace(/^R\$\s?/, '')
     : '';
+  f.price2.value = item?.price2 !== null && item?.price2 !== undefined ? plain(item.price2) : '';
   f.badge.value = item?.badge ?? '';
   f.category_id.value = item?.category_id ?? categoryId;
+  syncPriceLabels();
   f.available.checked = item?.available ?? true;
   f.visible.checked = item?.visible ?? true;
   dialog.showModal();
   if (!item) f.name.focus();
 }
+
+// Mostra o campo do 2º preço só quando a aba escolhida tem duas colunas.
+function syncPriceLabels() {
+  const f = itemForm.elements;
+  const category = state.categories.find((c) => c.id === f.category_id.value);
+  $('price-label').textContent = category?.price_label ? `${category.price_label} (R$)` : 'Preço (R$)';
+  $('price2-field').hidden = !category?.price2_label;
+  $('price2-label').textContent = category?.price2_label ? `${category.price2_label} (R$)` : '';
+}
+
+itemForm.elements.category_id.addEventListener('change', syncPriceLabels);
 
 dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
 
@@ -425,7 +482,10 @@ itemForm.addEventListener('submit', async (event) => {
   const price = parsePrice(f.price.value);
   const promoText = f.promo_price.value.trim();
   const promo_price = promoText ? parsePrice(promoText) : null;
+  const price2Text = $('price2-field').hidden ? '' : f.price2.value.trim();
+  const price2 = price2Text ? parsePrice(price2Text) : null;
   if (price === null) return formError('Preço inválido. Use números, como 14,50.');
+  if (price2Text && price2 === null) return formError('Segundo preço inválido. Deixe vazio se não tiver.');
   if (promoText && promo_price === null) return formError('Preço promocional inválido. Deixe vazio para tirar a promoção.');
   if (promo_price !== null && promo_price >= price) return formError('O preço promocional precisa ser menor que o preço normal.');
 
@@ -434,6 +494,7 @@ itemForm.addEventListener('submit', async (event) => {
     detail: f.detail.value.trim(),
     description: f.description.value.trim(),
     price,
+    price2,
     promo_price,
     badge: f.badge.value || null,
     category_id: f.category_id.value,

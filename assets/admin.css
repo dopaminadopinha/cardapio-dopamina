@@ -161,13 +161,14 @@ legend {
 
 .card-main {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .card-title {
   flex: 1;
-  min-width: 0;
+  min-width: 9em;
   padding: 4px 0;
   border: 0;
   background: none;
@@ -194,8 +195,29 @@ legend {
   margin-left: 6px;
 }
 
-.price-field {
+.price-fields {
   flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.price-field-label {
+  max-width: 7.5em;
+  color: var(--lilac);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.price-field-box {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -208,7 +230,7 @@ legend {
   font-weight: 700;
 }
 
-.price-field:focus-within {
+.price-field-box:focus-within {
   border-color: var(--gold);
 }
 
@@ -518,4 +540,13 @@ code {
 
 .toast.is-error {
   background: var(--danger);
+}
+
+.label-row {
+  margin-top: 10px;
+}
+
+.label-row .field input {
+  padding: 8px 10px;
+  font-size: 0.88rem;
 }

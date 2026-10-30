@@ -64,9 +64,14 @@
         <textarea name="description" rows="2" placeholder="Opcional. Ex.: gin, tônica e limão siciliano"></textarea>
       </label>
       <div class="field-row">
-        <label class="field">Preço (R$)
+        <label class="field"><span id="price-label">Preço (R$)</span>
           <input name="price" inputmode="decimal" required placeholder="0,00">
         </label>
+        <label id="price2-field" class="field" hidden><span id="price2-label"></span>
+          <input name="price2" inputmode="decimal" placeholder="Opcional">
+        </label>
+      </div>
+      <div class="field-row">
         <label class="field">Preço promocional
           <input name="promo_price" inputmode="decimal" placeholder="Opcional">
         </label>

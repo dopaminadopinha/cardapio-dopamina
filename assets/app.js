@@ -81,21 +81,29 @@ function renderPanel(animate = false) {
     return;
   }
   els.spine.textContent = section.name;
-  els.panel.replaceChildren(
+  const twoPrices = Boolean(section.price2_label);
+  const listClass = ['items', animate && 'is-entering', twoPrices && 'has-two-prices'].filter(Boolean).join(' ');
+  els.panel.replaceChildren(...[
     h('h2', { class: 'section-title' }, section.name),
-    h('ul', { class: animate ? 'items is-entering' : 'items' }, section.items.map(renderItem)),
-  );
+    twoPrices
+      ? h('p', { class: 'price-head' },
+          h('span', { class: 'price-head-label' }, section.price_label || 'R$'),
+          h('span', { class: 'price-head-label' }, section.price2_label))
+      : null,
+    h('ul', { class: listClass }, section.items.map((item) => renderItem(item, twoPrices))),
+  ].filter(Boolean));
 }
 
-function renderItem(item) {
+function renderItem(item, twoPrices) {
+  const money = twoPrices ? (value) => formatPrice(value).replace(/^R\$\s?/, '') : formatPrice;
   const promo = item.promo_price !== null && Number(item.promo_price) < Number(item.price);
   const price = !item.available
     ? h('span', { class: 'price price-out' }, 'Esgotado')
     : promo
       ? h('span', { class: 'price' },
-          h('s', { class: 'price-old' }, formatPrice(item.price)),
-          formatPrice(item.promo_price))
-      : h('span', { class: 'price' }, formatPrice(item.price));
+          h('s', { class: 'price-old' }, money(item.price)),
+          money(item.promo_price))
+      : h('span', { class: 'price' }, money(item.price));
 
   return h('li', { class: `item${item.available ? '' : ' is-out'}` },
     h('p', { class: 'item-line' },
@@ -105,6 +113,9 @@ function renderItem(item) {
         item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
       ),
       price,
+      twoPrices
+        ? h('span', { class: 'price' }, item.available && item.price2 !== null ? money(item.price2) : '')
+        : null,
     ),
     item.description ? h('p', { class: 'item-desc' }, item.description) : null,
   );

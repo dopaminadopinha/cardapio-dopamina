@@ -27,6 +27,9 @@ create table if not exists public.menu_categories (
   name text not null check (length(trim(name)) > 0),
   position int not null default 0,
   visible boolean not null default true,
+  -- Nomes das colunas de preço; com price2_label preenchido a aba mostra dois preços
+  price_label text not null default '',
+  price2_label text not null default '',
   created_at timestamptz not null default now()
 );
 
@@ -37,6 +40,7 @@ create table if not exists public.menu_items (
   detail text not null default '',
   description text not null default '',
   price numeric(10, 2) not null default 0 check (price >= 0),
+  price2 numeric(10, 2) check (price2 >= 0),
   promo_price numeric(10, 2) check (promo_price >= 0),
   badge text check (badge in ('novo', 'mais_pedido', 'promo')),
   available boolean not null default true,
