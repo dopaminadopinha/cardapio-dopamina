@@ -110,7 +110,6 @@ function renderItem(item, twoPrices) {
       h('span', { class: 'item-name' },
         h('strong', {}, item.name),
         item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
-        item.image_url ? h('span', { class: 'photo-hint', 'aria-hidden': 'true' }, cameraIcon()) : null,
         item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
       ),
       price,
@@ -121,52 +120,97 @@ function renderItem(item, twoPrices) {
     item.description ? h('span', { class: 'item-desc' }, item.description) : null,
   ];
 
+  // Item sem foto fica só com o texto; com foto ganha a miniatura e abre a foto ao tocar.
   return h('li', { class: `item${item.available ? '' : ' is-out'}` },
     item.image_url
       ? h('button', {
           type: 'button',
           class: 'item-button',
           'aria-label': `Ver foto: ${item.name} ${item.detail}`.trim(),
-          onclick: () => openPhoto(item, twoPrices),
-        }, content)
+          onclick: () => openPhoto(item),
+        },
+          h('img', { class: 'item-thumb', src: item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
+          h('span', { class: 'item-body' }, content),
+        )
       : content,
   );
 }
 
-function cameraIcon() {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.innerHTML = '<path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>';
-  return svg;
-}
-
-/* ---------- Foto do item ---------- */
+/* ---------- Foto do item (desliza para ver as outras fotos da aba) ---------- */
 
 const photoDialog = document.getElementById('photo-dialog');
+const photoImg = document.getElementById('photo-img');
+let gallery = [];
+let galleryIndex = 0;
 
-function openPhoto(item, twoPrices) {
+function openPhoto(item) {
+  gallery = currentSection().items.filter((i) => i.image_url);
+  galleryIndex = Math.max(0, gallery.indexOf(item));
+  showPhoto(0);
+  photoDialog.showModal();
+}
+
+function showPhoto(direction) {
   const section = currentSection();
-  const img = document.getElementById('photo-img');
-  img.src = item.image_url;
-  img.alt = `${item.name} ${item.detail}`.trim();
+  const twoPrices = Boolean(section.price2_label);
+  const item = gallery[galleryIndex];
+  photoImg.src = item.image_url;
+  photoImg.alt = `${item.name} ${item.detail}`.trim();
+  photoImg.classList.remove('slide-next', 'slide-prev');
+  if (direction) {
+    void photoImg.offsetWidth; // reinicia a animação
+    photoImg.classList.add(direction > 0 ? 'slide-next' : 'slide-prev');
+  }
   document.getElementById('photo-name').replaceChildren(
     h('strong', {}, item.name),
-    item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
+    ...(item.detail ? [h('span', { class: 'item-detail' }, ` ${item.detail}`)] : []),
   );
-  const prices = !item.available
+  const promo = item.promo_price !== null && Number(item.promo_price) < Number(item.price);
+  document.getElementById('photo-price').textContent = !item.available
     ? 'Esgotado'
     : [
-        `${twoPrices && section.price_label ? `${section.price_label}: ` : ''}${formatPrice(
-          item.promo_price !== null && Number(item.promo_price) < Number(item.price) ? item.promo_price : item.price,
-        )}`,
+        `${twoPrices && section.price_label ? `${section.price_label}: ` : ''}${formatPrice(promo ? item.promo_price : item.price)}`,
         twoPrices && item.price2 !== null ? `${section.price2_label}: ${formatPrice(item.price2)}` : null,
       ].filter(Boolean).join(' · ');
-  document.getElementById('photo-price').textContent = prices;
   const desc = document.getElementById('photo-desc');
   desc.textContent = item.description || '';
   desc.hidden = !item.description;
-  photoDialog.showModal();
+
+  const many = gallery.length > 1;
+  document.getElementById('photo-prev').hidden = !many;
+  document.getElementById('photo-next').hidden = !many;
+  const dots = document.getElementById('photo-dots');
+  dots.hidden = !many;
+  dots.replaceChildren(...gallery.map((_, i) => h('span', { class: i === galleryIndex ? 'dot is-active' : 'dot' })));
+  // Já carrega a próxima foto para o deslize ser instantâneo
+  if (many) new Image().src = gallery[(galleryIndex + 1) % gallery.length].image_url;
 }
+
+function step(delta) {
+  if (gallery.length < 2) return;
+  galleryIndex = (galleryIndex + delta + gallery.length) % gallery.length;
+  showPhoto(delta);
+}
+
+document.getElementById('photo-prev').addEventListener('click', () => step(-1));
+document.getElementById('photo-next').addEventListener('click', () => step(1));
+
+photoDialog.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowRight') step(1);
+  if (event.key === 'ArrowLeft') step(-1);
+});
+
+let touchStart = null;
+photoDialog.addEventListener('touchstart', (event) => {
+  touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+}, { passive: true });
+photoDialog.addEventListener('touchend', (event) => {
+  if (!touchStart) return;
+  const dx = event.changedTouches[0].clientX - touchStart.x;
+  const dy = event.changedTouches[0].clientY - touchStart.y;
+  touchStart = null;
+  if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+});
 
 photoDialog.addEventListener('click', (event) => {
   // Toque fora da foto (no fundo escuro) ou no botão fecha

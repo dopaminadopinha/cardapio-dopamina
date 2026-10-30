@@ -33,7 +33,12 @@
 
   <dialog id="photo-dialog" class="photo-sheet" aria-labelledby="photo-name">
     <figure class="photo-card">
-      <img id="photo-img" class="photo-img" alt="">
+      <div class="photo-stage">
+        <img id="photo-img" class="photo-img" alt="">
+        <button id="photo-prev" class="photo-nav photo-nav-prev" type="button" aria-label="Foto anterior" hidden>‹</button>
+        <button id="photo-next" class="photo-nav photo-nav-next" type="button" aria-label="Próxima foto" hidden>›</button>
+        <div id="photo-dots" class="photo-dots" aria-hidden="true" hidden></div>
+      </div>
       <figcaption class="photo-caption">
         <p id="photo-name" class="photo-name"></p>
         <p id="photo-price" class="photo-price"></p>
