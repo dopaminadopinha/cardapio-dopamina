@@ -167,6 +167,7 @@ function renderItemCard(item, index, list) {
 
   card.append(
     h('div', { class: 'card-main' },
+      item.image_url ? h('img', { class: 'card-thumb', src: item.image_url, alt: '', loading: 'lazy' }) : null,
       h('button', { type: 'button', class: 'card-title', onclick: () => openItem(item) },
         h('strong', {}, item.name),
         item.detail ? h('span', {}, ` ${item.detail}`) : null,
@@ -400,6 +401,73 @@ function renderSettingsView() {
 const dialog = $('item-dialog');
 const itemForm = $('item-form');
 let editing = null; // item existente, ou null para novo
+let photo = { file: null, remove: false }; // mudança de foto pendente até salvar
+
+const PHOTO_BUCKET = 'menu-photos';
+
+function showPhoto(url) {
+  const preview = $('photo-preview');
+  preview.hidden = !url;
+  if (url) preview.src = url;
+  else preview.removeAttribute('src');
+  $('photo-remove').hidden = !url;
+  $('photo-pick-label').textContent = url ? 'Trocar foto' : 'Escolher foto';
+}
+
+$('photo-input').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  photo = { file, remove: false };
+  showPhoto(URL.createObjectURL(file));
+});
+
+$('photo-remove').addEventListener('click', () => {
+  photo = { file: null, remove: true };
+  $('photo-input').value = '';
+  showPhoto(null);
+});
+
+// Reduz a foto do celular (vários MB) para ~1200px em JPEG antes de enviar.
+async function shrinkImage(file, max = 1200) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await new Promise((resolve, reject) =>
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Falha ao converter a foto'))), 'image/jpeg', 0.82),
+    );
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function photoPath(url) {
+  const marker = `/${PHOTO_BUCKET}/`;
+  return url?.includes(marker) ? url.slice(url.indexOf(marker) + marker.length) : null;
+}
+
+// Aplica a foto pendente ao item já salvo e devolve o novo image_url.
+async function savePhoto(item) {
+  if (!photo.file && !photo.remove) return item.image_url;
+  const oldPath = photoPath(item.image_url);
+  let imageUrl = null;
+  if (photo.file) {
+    const blob = await shrinkImage(photo.file);
+    const path = `${item.id}/${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
+    if (error) throw error;
+    imageUrl = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+  if (!(await update('menu_items', item.id, { image_url: imageUrl }))) throw new Error('Falha ao salvar a foto');
+  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
+  return imageUrl;
+}
 
 function openItem(item, categoryId) {
   editing = item;
@@ -421,6 +489,9 @@ function openItem(item, categoryId) {
   syncPriceLabels();
   f.available.checked = item?.available ?? true;
   f.visible.checked = item?.visible ?? true;
+  photo = { file: null, remove: false };
+  $('photo-input').value = '';
+  showPhoto(item?.image_url ?? null);
   dialog.showModal();
   if (!item) f.name.focus();
 }
@@ -435,6 +506,8 @@ function syncPriceLabels() {
 }
 
 itemForm.elements.category_id.addEventListener('change', syncPriceLabels);
+
+const submitButton = itemForm.querySelector('button[type="submit"]');
 
 dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
 
@@ -483,10 +556,22 @@ itemForm.addEventListener('submit', async (event) => {
     console.error(error);
     return formError('Não salvou. Verifique a conexão e tente de novo.');
   }
-  if (editing) Object.assign(editing, data);
-  else state.items.push(data);
+  const saved = editing ? Object.assign(editing, data) : data;
+  if (!editing) state.items.push(saved);
+  const wasNew = !editing;
+  editing = saved;
+  submitButton.disabled = true;
+  try {
+    saved.image_url = await savePhoto(saved);
+  } catch (photoError) {
+    console.error(photoError);
+    submitButton.disabled = false;
+    render();
+    return formError('O item foi salvo, mas a foto não. Tente enviar a foto de novo.');
+  }
+  submitButton.disabled = false;
   dialog.close();
-  toast(editing ? 'Item salvo' : 'Item adicionado');
+  toast(wasNew ? 'Item adicionado' : 'Item salvo');
   render();
 });
 
@@ -499,6 +584,8 @@ $('item-delete').addEventListener('click', async () => {
   if (!editing || !confirm(`Excluir "${editing.name} ${editing.detail}"? Não dá para desfazer.`.replace(' "?', '"?'))) return;
   const { error } = await supabase.from('menu_items').delete().eq('id', editing.id);
   if (error) return formError('Não foi possível excluir.');
+  const oldPath = photoPath(editing.image_url);
+  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
   state.items = state.items.filter((i) => i.id !== editing.id);
   dialog.close();
   toast('Item excluído');

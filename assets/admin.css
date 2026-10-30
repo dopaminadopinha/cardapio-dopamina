@@ -550,3 +550,51 @@ code {
   padding: 8px 10px;
   font-size: 0.88rem;
 }
+
+/* Foto do item */
+.photo-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.photo-preview,
+.card-thumb {
+  flex: none;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--plum-deep);
+}
+
+.photo-preview {
+  width: 84px;
+  height: 84px;
+}
+
+.card-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-pick {
+  position: relative;
+  overflow: hidden;
+}
+
+.photo-pick input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.photo-pick:focus-within {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}

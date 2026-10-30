@@ -105,11 +105,12 @@ function renderItem(item, twoPrices) {
           money(item.promo_price))
       : h('span', { class: 'price' }, money(item.price));
 
-  return h('li', { class: `item${item.available ? '' : ' is-out'}` },
-    h('p', { class: 'item-line' },
+  const content = [
+    h('span', { class: 'item-line' },
       h('span', { class: 'item-name' },
         h('strong', {}, item.name),
         item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
+        item.image_url ? h('span', { class: 'photo-hint', 'aria-hidden': 'true' }, cameraIcon()) : null,
         item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
       ),
       price,
@@ -117,9 +118,60 @@ function renderItem(item, twoPrices) {
         ? h('span', { class: 'price' }, item.available && item.price2 !== null ? money(item.price2) : '')
         : null,
     ),
-    item.description ? h('p', { class: 'item-desc' }, item.description) : null,
+    item.description ? h('span', { class: 'item-desc' }, item.description) : null,
+  ];
+
+  return h('li', { class: `item${item.available ? '' : ' is-out'}` },
+    item.image_url
+      ? h('button', {
+          type: 'button',
+          class: 'item-button',
+          'aria-label': `Ver foto: ${item.name} ${item.detail}`.trim(),
+          onclick: () => openPhoto(item, twoPrices),
+        }, content)
+      : content,
   );
 }
+
+function cameraIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.innerHTML = '<path d="M4 8h3l2-3h6l2 3h3v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>';
+  return svg;
+}
+
+/* ---------- Foto do item ---------- */
+
+const photoDialog = document.getElementById('photo-dialog');
+
+function openPhoto(item, twoPrices) {
+  const section = currentSection();
+  const img = document.getElementById('photo-img');
+  img.src = item.image_url;
+  img.alt = `${item.name} ${item.detail}`.trim();
+  document.getElementById('photo-name').replaceChildren(
+    h('strong', {}, item.name),
+    item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
+  );
+  const prices = !item.available
+    ? 'Esgotado'
+    : [
+        `${twoPrices && section.price_label ? `${section.price_label}: ` : ''}${formatPrice(
+          item.promo_price !== null && Number(item.promo_price) < Number(item.price) ? item.promo_price : item.price,
+        )}`,
+        twoPrices && item.price2 !== null ? `${section.price2_label}: ${formatPrice(item.price2)}` : null,
+      ].filter(Boolean).join(' · ');
+  document.getElementById('photo-price').textContent = prices;
+  const desc = document.getElementById('photo-desc');
+  desc.textContent = item.description || '';
+  desc.hidden = !item.description;
+  photoDialog.showModal();
+}
+
+photoDialog.addEventListener('click', (event) => {
+  // Toque fora da foto (no fundo escuro) ou no botão fecha
+  if (event.target === photoDialog || event.target.closest('[data-close]')) photoDialog.close();
+});
 
 function select(slug) {
   if (slug === currentSection()?.slug) return;

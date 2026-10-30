@@ -41,6 +41,7 @@ create table if not exists public.menu_items (
   description text not null default '',
   price numeric(10, 2) not null default 0 check (price >= 0),
   price2 numeric(10, 2) check (price2 >= 0),
+  image_url text,
   promo_price numeric(10, 2) check (promo_price >= 0),
   badge text check (badge in ('novo', 'mais_pedido', 'promo')),
   available boolean not null default true,
@@ -239,3 +240,29 @@ begin
     (nao_alcoolicas, 'Água Tônica', '', 8.00, 8);
 end;
 $$;
+
+-- Fotos dos itens: leitura pública; enviar, trocar e apagar só com a chave de edição
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('menu-photos', 'menu-photos', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
+
+drop policy if exists "menu_photos_select" on storage.objects;
+create policy "menu_photos_select" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'menu-photos' and public.is_menu_admin());
+
+drop policy if exists "menu_photos_insert" on storage.objects;
+create policy "menu_photos_insert" on storage.objects
+  for insert to anon, authenticated
+  with check (bucket_id = 'menu-photos' and public.is_menu_admin());
+
+drop policy if exists "menu_photos_update" on storage.objects;
+create policy "menu_photos_update" on storage.objects
+  for update to anon, authenticated
+  using (bucket_id = 'menu-photos' and public.is_menu_admin())
+  with check (bucket_id = 'menu-photos' and public.is_menu_admin());
+
+drop policy if exists "menu_photos_delete" on storage.objects;
+create policy "menu_photos_delete" on storage.objects
+  for delete to anon, authenticated
+  using (bucket_id = 'menu-photos' and public.is_menu_admin());

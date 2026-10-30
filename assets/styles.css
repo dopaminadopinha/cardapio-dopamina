@@ -22,6 +22,11 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Garante que [hidden] vença classes que definem display */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--plum);
@@ -240,6 +245,7 @@ body {
 }
 
 .item-desc {
+  display: block;
   margin: 3px 0 0;
   color: var(--lilac);
   font-size: 0.82rem;
@@ -311,6 +317,120 @@ body {
 
 .colophon p {
   margin: 0 0 6px;
+}
+
+/* Item com foto: a linha inteira vira um botão */
+.item-button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.item-button:active .item-name {
+  opacity: 0.7;
+}
+
+.photo-hint {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-left: 6px;
+  color: var(--lilac);
+  vertical-align: -0.1em;
+}
+
+.photo-hint svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.photo-sheet {
+  width: min(100% - 32px, 440px);
+  max-height: 92dvh;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: var(--plum-deep);
+  color: var(--white);
+  overflow: auto;
+}
+
+.photo-sheet::backdrop {
+  background: rgb(10 2 20 / 0.75);
+}
+
+.photo-sheet[open] {
+  animation: pop 0.22s ease-out;
+}
+
+.photo-card {
+  margin: 0;
+}
+
+.photo-img {
+  display: block;
+  width: 100%;
+  max-height: 60dvh;
+  object-fit: cover;
+  background: var(--plum);
+}
+
+.photo-caption {
+  padding: 16px 18px 18px;
+}
+
+.photo-name {
+  margin: 0;
+  color: var(--gold);
+  font-size: 1.05rem;
+  text-transform: uppercase;
+}
+
+.photo-name strong {
+  font-weight: 900;
+}
+
+.photo-price {
+  margin: 6px 0 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.photo-desc {
+  margin: 6px 0 0;
+  color: var(--lilac);
+  font-size: 0.88rem;
+}
+
+.photo-close {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--gold);
+  color: var(--plum-deep);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 
 @keyframes rise {

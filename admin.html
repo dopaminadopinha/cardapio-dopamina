@@ -48,6 +48,18 @@
       <label class="field">Descrição
         <textarea name="description" rows="2" placeholder="Opcional. Ex.: gin, tônica e limão siciliano"></textarea>
       </label>
+      <div class="field">Foto
+        <div class="photo-field">
+          <img id="photo-preview" class="photo-preview" alt="" hidden>
+          <div class="photo-actions">
+            <label class="btn btn-ghost btn-small photo-pick">
+              <span id="photo-pick-label">Escolher foto</span>
+              <input id="photo-input" type="file" accept="image/*">
+            </label>
+            <button id="photo-remove" class="btn btn-ghost btn-small" type="button" hidden>Remover foto</button>
+          </div>
+        </div>
+      </div>
       <div class="field-row">
         <label class="field"><span id="price-label">Preço (R$)</span>
           <input name="price" inputmode="decimal" required placeholder="0,00">
