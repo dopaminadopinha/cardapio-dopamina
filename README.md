@@ -25,7 +25,7 @@ A edição não tem login: ela abre pelo link `.../admin.html#chave=SUA-CHAVE`. 
 
 ## Publicar mudanças no código
 
-O site é estático, sem build. Envie para `main` e atualize `gh-pages` (`git push origin main:gh-pages`).
+O site é estático, sem build. Rode `./publicar.sh "mensagem"`: ele carimba uma versão nova nos endereços dos arquivos (`?v=...`, para o celular não usar a cópia antiga), faz o commit e envia para `main` e `gh-pages`.
 
 ## Terceiros
 

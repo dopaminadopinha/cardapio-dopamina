@@ -1,4 +1,4 @@
-import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js';
+import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js?v=202610300504';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -297,7 +297,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js');
+    const { supabase } = await import('./client.js?v=202610300504');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
