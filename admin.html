@@ -18,29 +18,14 @@
     <strong>Editar cardápio</strong>
     <div class="admin-bar-actions">
       <a class="btn btn-ghost" href="./" target="_blank" rel="noopener">Ver cardápio</a>
-      <button id="logout" class="btn btn-ghost" type="button" hidden>Sair</button>
     </div>
   </header>
 
-  <section id="login-view" class="admin-view" hidden>
-    <form id="login-form" class="stack card-plain">
-      <h1>Entrar</h1>
-      <label class="field">E-mail
-        <input name="email" type="email" autocomplete="username" required>
-      </label>
-      <label class="field">Senha
-        <input name="password" type="password" autocomplete="current-password" required>
-      </label>
-      <p id="login-error" class="form-error" role="alert" hidden></p>
-      <button class="btn btn-gold" type="submit">Entrar</button>
-    </form>
-  </section>
-
-  <section id="denied-view" class="admin-view" hidden>
+  <section id="locked-view" class="admin-view" hidden>
     <div class="stack card-plain">
-      <h1>Esta conta ainda não edita o cardápio</h1>
-      <p>Adicione o código abaixo na tabela <code>menu_admins</code> do Supabase e recarregue esta página.</p>
-      <code id="denied-id" class="code-block"></code>
+      <h1>Abra pelo seu link de edição</h1>
+      <p class="muted">Esta página só edita o cardápio quando aberta pelo link secreto de edição. Se você perdeu o link, peça um novo.</p>
+      <a class="btn btn-gold" href="./">Ver o cardápio</a>
     </div>
   </section>
 

@@ -1,10 +1,9 @@
-import { supabase, fetchMenu, formatPrice, parsePrice, h, BADGES } from './shared.js';
+import { supabase, editKey, fetchMenu, formatPrice, parsePrice, h, BADGES } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
 
 const views = {
-  login: $('login-view'),
-  denied: $('denied-view'),
+  locked: $('locked-view'),
   editor: $('editor-view'),
 };
 
@@ -15,59 +14,26 @@ const state = {
   view: null, // id de uma aba, 'abas' ou 'avisos'
 };
 
-/* ---------- Sessão ---------- */
+/* ---------- Acesso pelo link secreto ---------- */
 
 function show(name) {
   for (const [key, el] of Object.entries(views)) el.hidden = key !== name;
-  $('logout').hidden = name === 'login';
 }
 
-async function route(session) {
-  if (!session) {
-    show('login');
+async function start() {
+  const { data, error } = editKey ? await supabase.rpc('has_menu_key') : { data: false };
+  if (error) {
+    console.error(error);
+    toast('Não foi possível conectar. Verifique a internet e recarregue.', true);
     return;
   }
-  const { data, error } = await supabase
-    .from('menu_admins')
-    .select('user_id')
-    .eq('user_id', session.user.id)
-    .maybeSingle();
-  if (error || !data) {
-    $('denied-id').textContent = session.user.id;
-    show('denied');
+  if (!data) {
+    show('locked');
     return;
   }
   show('editor');
   await reload();
 }
-
-$('login-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form.querySelector('button[type="submit"]');
-  button.disabled = true;
-  $('login-error').hidden = true;
-  const { error } = await supabase.auth.signInWithPassword({
-    email: form.email.value.trim(),
-    password: form.password.value,
-  });
-  button.disabled = false;
-  if (error) {
-    $('login-error').textContent = 'E-mail ou senha incorretos.';
-    $('login-error').hidden = false;
-  }
-});
-
-$('logout').addEventListener('click', () => supabase.auth.signOut());
-
-let lastUserId;
-supabase.auth.onAuthStateChange((_event, session) => {
-  // Evita recarregar tudo a cada renovação automática do token.
-  const userId = session?.user.id ?? null;
-  if (userId === lastUserId) return;
-  lastUserId = userId;
-  setTimeout(() => route(session), 0);
-});
 
 /* ---------- Dados ---------- */
 
@@ -84,10 +50,11 @@ async function reload() {
 }
 
 async function update(table, id, patch) {
-  const { error } = await supabase.from(table).update(patch).eq('id', id);
-  if (error) {
+  // Sem permissão o banco não dá erro, só não altera nenhuma linha; por isso confere o retorno.
+  const { data, error } = await supabase.from(table).update(patch).eq('id', id).select('id');
+  if (error || !data?.length) {
     console.error(error);
-    toast('Não salvou. Verifique a conexão e tente de novo.', true);
+    toast(error ? 'Não salvou. Verifique a conexão e tente de novo.' : 'Não salvou: abra de novo o seu link de edição.', true);
     return false;
   }
   return true;
@@ -537,3 +504,5 @@ $('item-delete').addEventListener('click', async () => {
   toast('Item excluído');
   render();
 });
+
+start();

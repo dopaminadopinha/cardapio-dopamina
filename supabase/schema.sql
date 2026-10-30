@@ -53,7 +53,30 @@ create table if not exists public.menu_items (
 create index if not exists menu_items_category_position_idx
   on public.menu_items (category_id, position);
 
--- Verifica se o usuário logado é administrador do cardápio
+-- Chave do link secreto de edição (admin.html#chave=...). Ninguém lê esta tabela pela API.
+create table if not exists public.menu_secret (
+  id int primary key default 1 check (id = 1),
+  key text not null
+);
+alter table public.menu_secret enable row level security;
+revoke all on public.menu_secret from anon, authenticated;
+insert into public.menu_secret (id, key) values (1, encode(gen_random_bytes(18), 'hex')) on conflict (id) do nothing;
+
+-- A página de edição manda a chave no cabeçalho x-menu-key
+create or replace function public.has_menu_key()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.menu_secret s
+    where s.key = (nullif(current_setting('request.headers', true), '')::json ->> 'x-menu-key')
+  );
+$$;
+
+-- Pode editar quem tem a chave do link (ou um usuário em menu_admins)
 create or replace function public.is_menu_admin()
 returns boolean
 language sql
@@ -61,7 +84,8 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (select 1 from public.menu_admins where user_id = auth.uid());
+  select public.has_menu_key()
+    or exists (select 1 from public.menu_admins where user_id = auth.uid());
 $$;
 
 -- Qualquer mudança em abas/itens "carimba" menu_settings.updated_at.
@@ -122,7 +146,7 @@ create policy "settings_read" on public.menu_settings
 
 drop policy if exists "settings_admin_update" on public.menu_settings;
 create policy "settings_admin_update" on public.menu_settings
-  for update to authenticated
+  for update to anon, authenticated
   using (public.is_menu_admin()) with check (public.is_menu_admin());
 
 drop policy if exists "admins_read_self" on public.menu_admins;
@@ -136,7 +160,7 @@ create policy "categories_read" on public.menu_categories
 
 drop policy if exists "categories_admin_write" on public.menu_categories;
 create policy "categories_admin_write" on public.menu_categories
-  for all to authenticated
+  for all to anon, authenticated
   using (public.is_menu_admin()) with check (public.is_menu_admin());
 
 drop policy if exists "items_read" on public.menu_items;
@@ -155,14 +179,15 @@ create policy "items_read" on public.menu_items
 
 drop policy if exists "items_admin_write" on public.menu_items;
 create policy "items_admin_write" on public.menu_items
-  for all to authenticated
+  for all to anon, authenticated
   using (public.is_menu_admin()) with check (public.is_menu_admin());
 
 grant select on public.menu_settings, public.menu_categories, public.menu_items to anon, authenticated;
-grant update on public.menu_settings to authenticated;
-grant insert, update, delete on public.menu_categories, public.menu_items to authenticated;
+grant update on public.menu_settings to anon, authenticated;
+grant insert, update, delete on public.menu_categories, public.menu_items to anon, authenticated;
 grant select on public.menu_admins to authenticated;
 grant execute on function public.is_menu_admin() to anon, authenticated;
+grant execute on function public.has_menu_key() to anon, authenticated;
 -- Funções de gatilho não devem ser chamáveis pela API
 revoke execute on function public.touch_menu() from public, anon, authenticated;
 revoke execute on function public.set_updated_at() from public, anon, authenticated;
