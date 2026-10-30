@@ -641,3 +641,88 @@ code {
   flex: 1;
   accent-color: var(--gold);
 }
+
+/* Promoções */
+.pill-live {
+  background: var(--gold);
+  color: var(--plum-deep);
+}
+
+.promo-price {
+  flex: none;
+  color: var(--white);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.promo-summary {
+  margin-top: 6px;
+}
+
+.days-field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.days-field legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--lilac);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.day-chip {
+  position: relative;
+}
+
+.day-chip input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+}
+
+.day-chip {
+  min-width: 46px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--plum-line);
+  border-radius: 10px;
+  color: var(--gold-soft);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.day-chip:has(input:checked) {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--plum-deep);
+}
+
+.day-chip:has(input:focus-visible) {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.promo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--plum-line);
+  border-radius: 12px;
+}
+
+input[type='time'] {
+  color-scheme: dark;
+}

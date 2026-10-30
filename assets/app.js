@@ -1,4 +1,7 @@
-import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js?v=202610300540';
+import {
+  fetchMenu, formatPrice, slugify, h, BADGES,
+  barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
+} from './shared.js?v=202610300548';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -7,6 +10,7 @@ const els = {
   tabs: document.getElementById('tabs'),
   panel: document.getElementById('panel'),
   footer: document.getElementById('footer-text'),
+  promos: document.getElementById('promo-banner'),
 };
 
 let sections = [];
@@ -16,21 +20,87 @@ let activeSlug = decodeURIComponent(location.hash.slice(1));
 const CACHE_KEY = 'menu-cache-v1';
 let lastJson = '';
 
+let currentMenu = null;
+let activePromoKey = '';
+
 function show(menu) {
+  currentMenu = menu;
   const { settings, categories, items } = menu;
+  const now = barNow();
+  const running = (menu.promotions ?? []).filter((p) => promotionStatus(p, now).active);
+  activePromoKey = running.map((p) => p.id).join();
+
   sections = categories
     .filter((c) => c.visible)
     .map((c) => ({
       ...c,
       slug: slugify(c.name),
-      items: items.filter((i) => i.category_id === c.id && i.visible),
+      items: items.filter((i) => i.category_id === c.id && i.visible).map((i) => withPromotions(i, running)),
     }))
     .filter((c) => c.items.length > 0);
   renderHeader(settings);
   renderTabs();
   renderPanel(firstLoad);
+  renderPromoBanner();
   firstLoad = false;
 }
+
+// Aplica a promoção programada que estiver valendo agora (fica com o menor preço, se houver mais de uma).
+function withPromotions(item, running) {
+  const prices = running.filter((p) => promotionAppliesTo(p, item)).map((p) => Number(p.price));
+  if (item.promo_price !== null) prices.push(Number(item.promo_price));
+  const best = Math.min(...prices);
+  if (!(best < Number(item.price))) return item;
+  return { ...item, promo_price: best, badge: item.badge || 'promo' };
+}
+
+/* ---------- Faixa de promoções com cronômetro ---------- */
+
+function promoTarget(promo) {
+  const category = currentMenu.categories.find((c) => c.id === promo.category_id);
+  const name = category?.name ?? '';
+  return promo.item_ids ? `${name} selecionados` : `Todos os ${name.toLowerCase()}`;
+}
+
+function renderPromoBanner() {
+  if (!currentMenu) return;
+  const now = barNow();
+  const visible = new Set(sections.map((s) => s.id));
+  const promos = (currentMenu.promotions ?? [])
+    .filter((p) => visible.has(p.category_id))
+    .map((p) => ({ promo: p, status: promotionStatus(p, now) }))
+    .filter(({ status }) => status.active || status.startsIn !== undefined)
+    .sort((a, b) => Number(b.status.active) - Number(a.status.active));
+
+  els.promos.hidden = promos.length === 0;
+  els.promos.replaceChildren(...promos.map(({ promo, status }) => {
+    const slug = sections.find((s) => s.id === promo.category_id)?.slug;
+    return h('button', {
+      type: 'button',
+      class: `promo-card${status.active ? ' is-live' : ''}`,
+      onclick: () => slug && select(slug),
+    },
+      h('span', { class: 'promo-tag' }, status.active ? 'Promoção agora' : `Hoje das ${formatTime(promo.start_time)} às ${formatTime(promo.end_time)}`),
+      h('span', { class: 'promo-name' }, promo.name),
+      h('span', { class: 'promo-offer' }, `${promoTarget(promo)} por ${formatPrice(promo.price)}`),
+      h('span', { class: 'promo-timer' },
+        status.active ? 'termina em ' : 'começa em ',
+        h('strong', { class: 'promo-clock' }, formatCountdown(status.active ? status.endsIn : status.startsIn))),
+    );
+  }));
+}
+
+// A cada segundo: atualiza os cronômetros e, quando uma promoção começa ou acaba, os preços.
+setInterval(() => {
+  if (!currentMenu || document.hidden) return;
+  const now = barNow();
+  const key = (currentMenu.promotions ?? []).filter((p) => promotionStatus(p, now).active).map((p) => p.id).join();
+  if (key !== activePromoKey) {
+    show(currentMenu);
+    return;
+  }
+  renderPromoBanner();
+}, 1000);
 
 async function load() {
   try {
@@ -294,7 +364,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300540');
+    const { supabase } = await import('./client.js?v=202610300548');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)

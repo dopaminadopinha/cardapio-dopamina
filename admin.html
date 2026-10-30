@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css?v=202610300540">
-  <link rel="stylesheet" href="assets/admin.css?v=202610300540">
-  <script type="module" src="assets/admin.js?v=202610300540"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=202610300548">
+  <link rel="stylesheet" href="assets/admin.css?v=202610300548">
+  <script type="module" src="assets/admin.js?v=202610300548"></script>
 </head>
 <body class="admin-page">
   <header class="admin-bar">
@@ -105,6 +105,43 @@
       <p id="item-error" class="form-error" role="alert" hidden></p>
       <div class="sheet-actions">
         <button id="item-delete" class="btn btn-danger" type="button">Excluir item</button>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
+        <button class="btn btn-gold" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="promo-dialog" class="sheet">
+    <form id="promo-form" method="dialog" class="stack">
+      <h2 id="promo-dialog-title">Nova promoção</h2>
+      <label class="field">Nome da promoção
+        <input name="name" required placeholder="Terça do espeto">
+      </label>
+      <label class="field">Preço na promoção (R$)
+        <input name="price" inputmode="decimal" required placeholder="9,90">
+      </label>
+      <fieldset class="field days-field">
+        <legend>Dias da semana</legend>
+        <div id="promo-days" class="day-chips"></div>
+      </fieldset>
+      <div class="field-row">
+        <label class="field">Começa
+          <input name="start_time" type="time" required value="19:00">
+        </label>
+        <label class="field">Termina
+          <input name="end_time" type="time" required value="21:00">
+        </label>
+      </div>
+      <label class="field">Aba
+        <select name="category_id"></select>
+      </label>
+      <label class="check"><input name="all_items" type="checkbox" checked> Todos os itens da aba</label>
+      <div id="promo-items" class="promo-items" hidden></div>
+      <label class="check"><input name="active" type="checkbox" checked> Promoção ligada</label>
+      <p id="promo-error" class="form-error" role="alert" hidden></p>
+      <div class="sheet-actions">
+        <button id="promo-delete" class="btn btn-danger" type="button">Excluir</button>
         <span class="spacer"></span>
         <button class="btn btn-ghost" type="button" data-close>Cancelar</button>
         <button class="btn btn-gold" type="submit">Salvar</button>

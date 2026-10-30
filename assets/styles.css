@@ -89,6 +89,87 @@ body {
   font-weight: 800;
 }
 
+.promo-banner {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 0 14px;
+  padding: 0 var(--gutter);
+  scrollbar-width: none;
+}
+
+.promo-banner::-webkit-scrollbar {
+  display: none;
+}
+
+.promo-card {
+  flex: 1 0 min(100%, 300px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--gold);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--white);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.promo-card.is-live {
+  border-style: solid;
+  background: var(--gold);
+  color: var(--plum-deep);
+}
+
+.promo-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.promo-name {
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.promo-card:not(.is-live) .promo-name {
+  color: var(--gold);
+}
+
+.promo-offer {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.promo-timer {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.promo-clock {
+  font-size: 1rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.is-live .promo-clock {
+  animation: tick 1s steps(1) infinite;
+}
+
+@keyframes tick {
+  50% {
+    opacity: 0.75;
+  }
+}
+
 .tabs {
   position: sticky;
   top: 0;

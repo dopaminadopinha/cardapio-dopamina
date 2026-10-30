@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=202610300540';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=202610300548';
 
 export const BADGES = {
   novo: 'Novo',
@@ -57,10 +57,72 @@ export async function fetchMenu(headers = {}) {
     if (!response.ok) throw new Error(`Falha ao carregar ${path}: ${response.status}`);
     return response.json();
   };
-  const [settings, categories, items] = await Promise.all([
+  const [settings, categories, items, promotions] = await Promise.all([
     get('menu_settings?select=*&id=eq.1'),
     get('menu_categories?select=*&order=position.asc,created_at.asc'),
     get('menu_items?select=*&order=position.asc,created_at.asc'),
+    get('menu_promotions?select=*&order=created_at.asc'),
   ]);
-  return { settings: settings[0] ?? {}, categories, items };
+  return { settings: settings[0] ?? {}, categories, items, promotions };
+}
+
+/* ---------- Promoções programadas (sempre no horário de Brasília) ---------- */
+
+export const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const DAY = 24 * 3600;
+
+const barClock = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Sao_Paulo',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+// Dia da semana (0 = domingo) e segundos desde a meia-noite, no horário do bar
+export function barNow(date = new Date()) {
+  const parts = Object.fromEntries(barClock.formatToParts(date).map((p) => [p.type, p.value]));
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday);
+  return { day, seconds: Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second) };
+}
+
+const toSeconds = (time) => {
+  const [h, m, sec = 0] = String(time).split(':').map(Number);
+  return h * 3600 + m * 60 + sec;
+};
+
+export function formatTime(time) {
+  const [h, m] = String(time).split(':');
+  return m === '00' ? `${Number(h)}h` : `${Number(h)}h${m}`;
+}
+
+// Situação da promoção agora: ativa (e quanto falta para acabar) ou ainda vai começar hoje.
+// Se o fim for antes do início (ex.: 22h às 2h), ela termina no dia seguinte.
+export function promotionStatus(promo, now = barNow()) {
+  if (!promo.active || !promo.days?.length) return { active: false };
+  const start = toSeconds(promo.start_time);
+  const end = toSeconds(promo.end_time);
+  const today = promo.days.includes(now.day);
+  const yesterday = promo.days.includes((now.day + 6) % 7);
+  const t = now.seconds;
+  if (end > start) {
+    if (today && t >= start && t < end) return { active: true, endsIn: end - t };
+  } else {
+    if (today && t >= start) return { active: true, endsIn: DAY - t + end };
+    if (yesterday && t < end) return { active: true, endsIn: end - t };
+  }
+  if (today && t < start) return { active: false, startsIn: start - t };
+  return { active: false };
+}
+
+export function promotionAppliesTo(promo, item) {
+  return promo.category_id === item.category_id && (!promo.item_ids || promo.item_ids.includes(item.id));
+}
+
+export function formatCountdown(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const sec = Math.floor(seconds % 60);
+  return [h, m, sec].map((n) => String(n).padStart(2, '0')).join(':');
 }

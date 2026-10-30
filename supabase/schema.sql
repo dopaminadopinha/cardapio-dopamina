@@ -267,3 +267,38 @@ drop policy if exists "menu_photos_delete" on storage.objects;
 create policy "menu_photos_delete" on storage.objects
   for delete to anon, authenticated
   using (bucket_id = 'menu-photos' and public.is_menu_admin());
+
+-- Promoções programadas (repetem toda semana; horários no fuso de Brasília)
+create table if not exists public.menu_promotions (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (length(trim(name)) > 0),
+  price numeric(10, 2) not null check (price >= 0),
+  -- 0 = domingo ... 6 = sábado
+  days int[] not null default '{}' check (days <@ array[0, 1, 2, 3, 4, 5, 6]),
+  start_time time not null,
+  end_time time not null,
+  category_id uuid not null references public.menu_categories (id) on delete cascade,
+  -- null = todos os itens da aba
+  item_ids uuid[],
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.menu_promotions enable row level security;
+
+drop policy if exists "promotions_read" on public.menu_promotions;
+create policy "promotions_read" on public.menu_promotions
+  for select to anon, authenticated
+  using (active or public.is_menu_admin());
+
+drop policy if exists "promotions_admin_write" on public.menu_promotions;
+create policy "promotions_admin_write" on public.menu_promotions
+  for all to anon, authenticated
+  using (public.is_menu_admin()) with check (public.is_menu_admin());
+
+grant select, insert, update, delete on public.menu_promotions to anon, authenticated;
+
+drop trigger if exists menu_promotions_touch on public.menu_promotions;
+create trigger menu_promotions_touch
+  after insert or update or delete on public.menu_promotions
+  for each statement execute function public.touch_menu();

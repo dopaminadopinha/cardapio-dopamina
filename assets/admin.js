@@ -1,5 +1,8 @@
-import { supabase, editKey } from './client.js?v=202610300540';
-import { fetchMenu, formatPrice, parsePrice, h, BADGES } from './shared.js?v=202610300540';
+import { supabase, editKey } from './client.js?v=202610300548';
+import {
+  fetchMenu, formatPrice, parsePrice, h, BADGES,
+  WEEKDAYS, barNow, promotionStatus, formatTime,
+} from './shared.js?v=202610300548';
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,6 +15,7 @@ const state = {
   settings: {},
   categories: [],
   items: [],
+  promotions: [],
   view: null, // id de uma aba, 'abas' ou 'avisos'
 };
 
@@ -41,7 +45,7 @@ async function start() {
 async function reload() {
   try {
     Object.assign(state, await fetchMenu({ 'x-menu-key': editKey }));
-    const valid = state.view === 'abas' || state.view === 'avisos' || state.categories.some((c) => c.id === state.view);
+    const valid = state.view === 'abas' || state.view === 'avisos' || state.view === 'promocoes' || state.categories.some((c) => c.id === state.view);
     if (!valid) state.view = state.categories[0]?.id ?? 'abas';
     render();
   } catch (error) {
@@ -103,6 +107,7 @@ function render() {
   const editor = $('editor');
   if (state.view === 'abas') editor.replaceChildren(renderCategoriesView());
   else if (state.view === 'avisos') editor.replaceChildren(renderSettingsView());
+  else if (state.view === 'promocoes') editor.replaceChildren(renderPromotionsView());
   else editor.replaceChildren(renderCategoryView(state.categories.find((c) => c.id === state.view)));
 }
 
@@ -121,6 +126,7 @@ function renderTabs() {
 
   $('admin-tabs').replaceChildren(
     ...categoriesSorted().map((c) => tab(c.id, c.name, c.visible ? '' : 'is-hidden')),
+    tab('promocoes', '⏱ Promoções', 'tab-tool'),
     tab('abas', '⚙ Abas', 'tab-tool'),
     tab('avisos', '⚙ Avisos e info', 'tab-tool'),
   );
@@ -396,6 +402,165 @@ function renderSettingsView() {
   );
   return form;
 }
+
+/* ---------- Promoções programadas ---------- */
+
+function describeDays(days) {
+  const sorted = [...days].sort();
+  if (sorted.length === 7) return 'Todos os dias';
+  return sorted.map((d) => WEEKDAYS[d]).join(', ');
+}
+
+function promoSummary(promo) {
+  const category = state.categories.find((c) => c.id === promo.category_id);
+  const count = promo.item_ids ? promo.item_ids.length : itemsOf(promo.category_id).length;
+  const target = promo.item_ids ? `${count} ${count === 1 ? 'item' : 'itens'} de ${category?.name ?? '?'}` : `toda a aba ${category?.name ?? '?'}`;
+  return `${describeDays(promo.days)} · ${formatTime(promo.start_time)} às ${formatTime(promo.end_time)} · ${target}`;
+}
+
+function renderPromotionsView() {
+  const now = barNow();
+  return h('div', { class: 'stack' },
+    h('div', { class: 'view-head' }, h('h1', {}, 'Promoções')),
+    h('p', { class: 'muted' }, 'Programe promoções que se repetem toda semana. No horário marcado (de Brasília), o cardápio mostra o preço promocional e um cronômetro; depois volta ao normal sozinho.'),
+    state.promotions.length
+      ? h('ul', { class: 'cards' }, state.promotions.map((promo) => {
+          const status = promotionStatus(promo, now);
+          return h('li', { class: `card${promo.active ? '' : ' is-hidden'}` },
+            h('div', { class: 'card-main' },
+              h('button', { type: 'button', class: 'card-title', onclick: () => openPromotion(promo) },
+                h('strong', {}, promo.name),
+                h('span', { class: 'card-tags' },
+                  status.active ? h('span', { class: 'pill pill-live' }, 'Valendo agora') : null,
+                  !status.active && status.startsIn !== undefined ? h('span', { class: 'pill' }, `Hoje às ${formatTime(promo.start_time)}`) : null,
+                ),
+              ),
+              h('span', { class: 'promo-price' }, formatPrice(promo.price)),
+            ),
+            h('p', { class: 'muted small promo-summary' }, promoSummary(promo)),
+            h('div', { class: 'card-actions' },
+              h('label', { class: 'switch' },
+                h('input', {
+                  type: 'checkbox',
+                  checked: promo.active,
+                  onchange: async (event) => {
+                    const active = event.target.checked;
+                    if (await update('menu_promotions', promo.id, { active })) {
+                      promo.active = active;
+                      toast(active ? `"${promo.name}" ligada` : `"${promo.name}" desligada`);
+                      render();
+                    } else event.target.checked = !active;
+                  },
+                }),
+                h('span', { class: 'switch-track', 'aria-hidden': 'true' }),
+                'Ligada',
+              ),
+              h('span', { class: 'spacer' }),
+              h('button', { type: 'button', class: 'btn btn-ghost btn-small', onclick: () => openPromotion(promo) }, 'Editar'),
+            ),
+          );
+        }))
+      : h('p', { class: 'muted' }, 'Nenhuma promoção programada ainda.'),
+    h('button', { type: 'button', class: 'btn btn-gold btn-block', onclick: () => openPromotion(null) }, '+ Nova promoção'),
+  );
+}
+
+const promoDialog = $('promo-dialog');
+const promoForm = $('promo-form');
+let editingPromo = null;
+
+function renderPromoItems(selected) {
+  const f = promoForm.elements;
+  const box = $('promo-items');
+  box.hidden = f.all_items.checked;
+  box.replaceChildren(...itemsOf(f.category_id.value).map((item) =>
+    h('label', { class: 'check' },
+      h('input', { type: 'checkbox', value: item.id, checked: !selected || selected.includes(item.id) }),
+      `${item.name} ${item.detail}`.trim(),
+      h('span', { class: 'muted small' }, ` ${formatPrice(item.price)}`),
+    ),
+  ));
+}
+
+function openPromotion(promo) {
+  editingPromo = promo;
+  const f = promoForm.elements;
+  $('promo-dialog-title').textContent = promo ? 'Editar promoção' : 'Nova promoção';
+  $('promo-delete').hidden = !promo;
+  $('promo-error').hidden = true;
+  f.name.value = promo?.name ?? '';
+  f.price.value = promo ? formatPrice(promo.price).replace(/^R\$\s?/, '') : '';
+  f.start_time.value = promo ? promo.start_time.slice(0, 5) : '19:00';
+  f.end_time.value = promo ? promo.end_time.slice(0, 5) : '21:00';
+  f.active.checked = promo?.active ?? true;
+  const days = promo?.days ?? [];
+  $('promo-days').replaceChildren(...WEEKDAYS.map((label, day) =>
+    h('label', { class: 'day-chip' }, h('input', { type: 'checkbox', value: day, checked: days.includes(day) }), label),
+  ));
+  f.category_id.replaceChildren(...categoriesSorted().map((c) => h('option', { value: c.id }, c.name)));
+  f.category_id.value = promo?.category_id ?? categoriesSorted()[0]?.id;
+  f.all_items.checked = !promo?.item_ids;
+  renderPromoItems(promo?.item_ids ?? null);
+  promoDialog.showModal();
+}
+
+promoForm.elements.category_id.addEventListener('change', () => renderPromoItems(null));
+promoForm.elements.all_items.addEventListener('change', () => {
+  $('promo-items').hidden = promoForm.elements.all_items.checked;
+});
+promoDialog.querySelector('[data-close]').addEventListener('click', () => promoDialog.close());
+
+function promoError(message) {
+  $('promo-error').textContent = message;
+  $('promo-error').hidden = false;
+}
+
+promoForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const f = promoForm.elements;
+  const price = parsePrice(f.price.value);
+  const days = [...$('promo-days').querySelectorAll('input:checked')].map((i) => Number(i.value));
+  const itemIds = f.all_items.checked ? null : [...$('promo-items').querySelectorAll('input:checked')].map((i) => i.value);
+  if (!f.name.value.trim()) return promoError('Dê um nome à promoção.');
+  if (price === null) return promoError('Preço inválido. Use números, como 9,90.');
+  if (!days.length) return promoError('Escolha pelo menos um dia da semana.');
+  if (f.start_time.value === f.end_time.value) return promoError('O horário de início e de fim não podem ser iguais.');
+  if (itemIds && !itemIds.length) return promoError('Escolha pelo menos um item, ou marque "Todos os itens da aba".');
+
+  const row = {
+    name: f.name.value.trim(),
+    price,
+    days,
+    start_time: f.start_time.value,
+    end_time: f.end_time.value,
+    category_id: f.category_id.value,
+    item_ids: itemIds,
+    active: f.active.checked,
+  };
+  const query = editingPromo
+    ? supabase.from('menu_promotions').update(row).eq('id', editingPromo.id).select().single()
+    : supabase.from('menu_promotions').insert(row).select().single();
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
+    return promoError('Não salvou. Verifique a conexão e tente de novo.');
+  }
+  if (editingPromo) Object.assign(editingPromo, data);
+  else state.promotions.push(data);
+  promoDialog.close();
+  toast(editingPromo ? 'Promoção salva' : 'Promoção criada');
+  render();
+});
+
+$('promo-delete').addEventListener('click', async () => {
+  if (!editingPromo || !confirm(`Excluir a promoção "${editingPromo.name}"?`)) return;
+  const { error } = await supabase.from('menu_promotions').delete().eq('id', editingPromo.id);
+  if (error) return promoError('Não foi possível excluir.');
+  state.promotions = state.promotions.filter((p) => p.id !== editingPromo.id);
+  promoDialog.close();
+  toast('Promoção excluída');
+  render();
+});
 
 /* ---------- Edição de item ---------- */
 
