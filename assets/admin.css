@@ -598,3 +598,46 @@ code {
   outline: 3px solid var(--gold);
   outline-offset: 2px;
 }
+
+/* Recorte da foto */
+.cropper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crop-frame {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid var(--gold);
+  border-radius: 14px;
+  background: var(--white);
+  touch-action: none;
+  cursor: grab;
+}
+
+.crop-frame img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lilac);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.crop-zoom input {
+  flex: 1;
+  accent-color: var(--gold);
+}

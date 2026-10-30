@@ -26,3 +26,7 @@ A edição não tem login: ela abre pelo link `.../admin.html#chave=SUA-CHAVE`. 
 ## Publicar mudanças no código
 
 O site é estático, sem build. Envie para `main` e atualize `gh-pages` (`git push origin main:gh-pages`).
+
+## Terceiros
+
+`assets/vendor/bg-removal.js` é o [@imgly/background-removal](https://github.com/imgly/background-removal-js) 1.4.5 empacotado num arquivo só (licença AGPL-3.0, em `assets/vendor/bg-removal-LICENSE.md`). Ele só é baixado quando alguém toca em "Trocar fundo por branco" na edição; os modelos vêm do CDN da IMG.LY (~55 MB na primeira vez).

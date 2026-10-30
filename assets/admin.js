@@ -412,20 +412,170 @@ function showPhoto(url) {
   if (url) preview.src = url;
   else preview.removeAttribute('src');
   $('photo-remove').hidden = !url;
+  $('photo-edit').hidden = !url;
   $('photo-pick-label').textContent = url ? 'Trocar foto' : 'Escolher foto';
 }
 
 $('photo-input').addEventListener('change', (event) => {
   const file = event.target.files[0];
-  if (!file) return;
-  photo = { file, remove: false };
-  showPhoto(URL.createObjectURL(file));
+  event.target.value = '';
+  if (file) openCropper(file);
 });
 
 $('photo-remove').addEventListener('click', () => {
   photo = { file: null, remove: true };
-  $('photo-input').value = '';
   showPhoto(null);
+});
+
+$('photo-edit').addEventListener('click', () => {
+  openCropper(photo.file ?? editing?.image_url);
+});
+
+/* ---------- Recorte (quadrado) e troca de fundo ---------- */
+
+const cropImg = $('crop-img');
+const cropFrame = $('crop-frame');
+const crop = { source: null, w: 0, h: 0, zoom: 1, x: 0, y: 0 };
+
+async function toBlob(source) {
+  if (source instanceof Blob) return source;
+  const response = await fetch(source);
+  if (!response.ok) throw new Error('Falha ao baixar a foto');
+  return response.blob();
+}
+
+async function openCropper(source) {
+  if (!source) return;
+  try {
+    crop.source = await toBlob(source);
+  } catch (error) {
+    console.error(error);
+    return toast('Não foi possível abrir a foto para recortar.', true);
+  }
+  $('cropper').hidden = false;
+  $('photo-field').hidden = true;
+  $('crop-status').hidden = true;
+  await loadCropImage(true);
+}
+
+async function loadCropImage(reset) {
+  if (cropImg.src) URL.revokeObjectURL(cropImg.src);
+  cropImg.src = URL.createObjectURL(crop.source);
+  await cropImg.decode();
+  crop.w = cropImg.naturalWidth;
+  crop.h = cropImg.naturalHeight;
+  if (reset) {
+    crop.zoom = 1;
+    $('crop-zoom').value = 1;
+    const k = scale();
+    crop.x = (frameSize() - crop.w * k) / 2;
+    crop.y = (frameSize() - crop.h * k) / 2;
+  }
+  layoutCrop();
+}
+
+const frameSize = () => cropFrame.clientWidth;
+// Escala que faz a foto cobrir o quadrado inteiro, vezes o zoom
+const scale = () => (frameSize() / Math.min(crop.w, crop.h)) * crop.zoom;
+
+function layoutCrop() {
+  const k = scale();
+  const size = frameSize();
+  crop.x = Math.min(0, Math.max(size - crop.w * k, crop.x));
+  crop.y = Math.min(0, Math.max(size - crop.h * k, crop.y));
+  cropImg.style.width = `${crop.w * k}px`;
+  cropImg.style.height = `${crop.h * k}px`;
+  cropImg.style.transform = `translate(${crop.x}px, ${crop.y}px)`;
+}
+
+let drag = null;
+cropFrame.addEventListener('pointerdown', (event) => {
+  drag = { id: event.pointerId, x: event.clientX - crop.x, y: event.clientY - crop.y };
+  cropFrame.setPointerCapture(event.pointerId);
+});
+cropFrame.addEventListener('pointermove', (event) => {
+  if (!drag || drag.id !== event.pointerId) return;
+  crop.x = event.clientX - drag.x;
+  crop.y = event.clientY - drag.y;
+  layoutCrop();
+});
+cropFrame.addEventListener('pointerup', () => (drag = null));
+cropFrame.addEventListener('pointercancel', () => (drag = null));
+
+$('crop-zoom').addEventListener('input', (event) => {
+  // Mantém o centro do quadrado no mesmo ponto da foto ao mudar o zoom
+  const half = frameSize() / 2;
+  const before = scale();
+  const cx = (half - crop.x) / before;
+  const cy = (half - crop.y) / before;
+  crop.zoom = Number(event.target.value);
+  const after = scale();
+  crop.x = half - cx * after;
+  crop.y = half - cy * after;
+  layoutCrop();
+});
+
+function closeCropper() {
+  $('cropper').hidden = true;
+  $('photo-field').hidden = false;
+}
+
+$('crop-cancel').addEventListener('click', closeCropper);
+
+$('crop-apply').addEventListener('click', async () => {
+  const k = scale();
+  const side = frameSize() / k; // lado do recorte em pixels da foto original
+  const out = Math.round(Math.min(1200, side));
+  const canvas = document.createElement('canvas');
+  canvas.width = out;
+  canvas.height = out;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, out, out);
+  ctx.drawImage(cropImg, -crop.x / k, -crop.y / k, side, side, 0, 0, out, out);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  photo = { file: blob, remove: false };
+  showPhoto(URL.createObjectURL(blob));
+  closeCropper();
+});
+
+// Remove o fundo no próprio aparelho (sem servidor) e coloca fundo branco.
+$('crop-bg').addEventListener('click', async () => {
+  const button = $('crop-bg');
+  const status = $('crop-status');
+  button.disabled = true;
+  status.hidden = false;
+  status.textContent = 'Preparando… Na primeira vez baixa uns 55 MB (use Wi-Fi); depois fica guardado.';
+  try {
+    const { removeBackground } = await import('./vendor/bg-removal.js');
+    const cutout = await removeBackground(crop.source, {
+      model: 'small',
+      output: { format: 'image/png' },
+      progress: (key, current, total) => {
+        if (key.startsWith('fetch') && total) status.textContent = `Baixando o removedor de fundo… ${Math.round((current / total) * 100)}%`;
+        else if (key.startsWith('compute')) status.textContent = 'Removendo o fundo…';
+      },
+    });
+    const img = new Image();
+    img.src = URL.createObjectURL(cutout);
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(img.src);
+    crop.source = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    await loadCropImage(false);
+    status.textContent = 'Fundo trocado por branco. Ajuste o recorte e toque em "Usar esta foto".';
+  } catch (error) {
+    console.error(error);
+    status.textContent = 'Não deu para remover o fundo neste aparelho. Você ainda pode recortar e usar a foto normal.';
+  } finally {
+    button.disabled = false;
+  }
 });
 
 // Reduz a foto do celular (vários MB) para ~1200px em JPEG antes de enviar.
@@ -499,6 +649,7 @@ function openItem(item, categoryId) {
   f.visible.checked = item?.visible ?? true;
   photo = { file: null, remove: false };
   $('photo-input').value = '';
+  closeCropper();
   showPhoto(item?.image_url ?? null);
   dialog.showModal();
   if (!item) f.name.focus();

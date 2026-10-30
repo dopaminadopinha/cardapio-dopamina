@@ -104,52 +104,83 @@ function renderPanel(animate = false) {
     return;
   }
   els.spine.textContent = section.name;
-  els.panel.replaceChildren(
+  // Em abas com dois preços, os itens sem foto usam colunas; o cabeçalho das colunas só aparece se houver algum.
+  const columns = section.price2_label && section.items.some((i) => !i.image_url);
+  els.panel.replaceChildren(...[
     h('h2', { class: 'section-title' }, section.name),
+    columns
+      ? h('p', { class: 'price-head' },
+          h('span', { class: 'price-head-label' }, section.price_label || 'R$'),
+          h('span', { class: 'price-head-label' }, section.price2_label))
+      : null,
     h('ul', { class: animate ? 'items is-entering' : 'items' }, section.items.map((item) => renderItem(item, section))),
-  );
+  ].filter(Boolean));
 }
 
 function renderItem(item, section) {
+  return item.image_url ? renderPhotoItem(item, section) : renderPlainItem(item, section);
+}
+
+function itemPrice(item, money) {
+  if (!item.available) return h('span', { class: 'price price-out' }, 'Esgotado');
   const promo = item.promo_price !== null && Number(item.promo_price) < Number(item.price);
+  return h('span', { class: 'price' },
+    promo ? h('s', { class: 'price-old' }, money(item.price)) : null,
+    money(promo ? item.promo_price : item.price));
+}
+
+function badge(item) {
+  return item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null;
+}
+
+// Sem foto: nome à esquerda e preço à direita, numa linha só (layout clássico).
+function renderPlainItem(item, section) {
+  const twoPrices = Boolean(section.price2_label);
+  const money = twoPrices ? (value) => formatPrice(value).replace(/^R\$\s?/, '') : formatPrice;
+  return h('li', { class: `item item-plain${item.available ? '' : ' is-out'}` },
+    h('p', { class: `item-line${twoPrices ? ' has-two-prices' : ''}` },
+      h('span', { class: 'item-name' },
+        h('strong', {}, item.name),
+        item.detail ? h('span', { class: 'item-detail' }, ` ${item.detail}`) : null,
+        badge(item),
+      ),
+      itemPrice(item, money),
+      twoPrices
+        ? h('span', { class: 'price' }, item.available && item.price2 !== null ? money(item.price2) : '')
+        : null,
+    ),
+    item.description ? h('p', { class: 'item-desc' }, item.description) : null,
+  );
+}
+
+// Com foto: texto e preço à esquerda, foto pequena à direita; tocar abre a foto grande.
+function renderPhotoItem(item, section) {
   const twoPrices = Boolean(section.price2_label);
   const label = (text) => (twoPrices && text ? h('span', { class: 'price-label' }, text) : null);
+  const first = itemPrice(item, formatPrice);
+  if (item.available) first.prepend(...[label(section.price_label)].filter(Boolean));
+  const prices = [
+    first,
+    item.available && twoPrices && item.price2 !== null
+      ? h('span', { class: 'price' }, label(section.price2_label), formatPrice(item.price2))
+      : null,
+  ];
 
-  const prices = !item.available
-    ? [h('span', { class: 'price price-out' }, 'Esgotado')]
-    : [
-        h('span', { class: 'price' },
-          label(section.price_label),
-          promo ? h('s', { class: 'price-old' }, formatPrice(item.price)) : null,
-          formatPrice(promo ? item.promo_price : item.price)),
-        twoPrices && item.price2 !== null
-          ? h('span', { class: 'price' }, label(section.price2_label), formatPrice(item.price2))
-          : null,
-      ];
-
-  const body = h('span', { class: 'item-body' },
-    h('span', { class: 'item-title' },
-      item.name,
-      item.badge && BADGES[item.badge] ? h('span', { class: `badge badge-${item.badge}` }, BADGES[item.badge]) : null,
+  return h('li', { class: `item item-photo-row${item.available ? '' : ' is-out'}` },
+    h('button', {
+      type: 'button',
+      class: 'item-row',
+      'aria-label': `Ver foto: ${item.name} ${item.detail}`.trim(),
+      onclick: () => openPhoto(item),
+    },
+      h('span', { class: 'item-body' },
+        h('span', { class: 'item-title' }, item.name, badge(item)),
+        item.detail ? h('span', { class: 'item-sub' }, item.detail) : null,
+        item.description ? h('span', { class: 'item-desc' }, item.description) : null,
+        h('span', { class: 'item-prices' }, prices),
+      ),
+      h('img', { class: 'item-photo', src: item.thumb_url || item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
     ),
-    item.detail ? h('span', { class: 'item-detail' }, item.detail) : null,
-    item.description ? h('span', { class: 'item-desc' }, item.description) : null,
-    h('span', { class: 'item-prices' }, prices),
-  );
-
-  // Sem foto: só o texto. Com foto: foto à direita e a linha inteira abre a foto grande.
-  return h('li', { class: `item${item.available ? '' : ' is-out'}` },
-    item.image_url
-      ? h('button', {
-          type: 'button',
-          class: 'item-row',
-          'aria-label': `Ver foto: ${item.name} ${item.detail}`.trim(),
-          onclick: () => openPhoto(item),
-        },
-          body,
-          h('img', { class: 'item-photo', src: item.thumb_url || item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
-        )
-      : h('div', { class: 'item-row' }, body),
   );
 }
 
