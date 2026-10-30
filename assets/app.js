@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610300608';
+} from './shared.js?v=202610300614';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -130,9 +130,34 @@ function promoStep() {
 function scrollToPromo(index, smooth = true) {
   const step = promoStep();
   if (!step) return;
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const left = Math.min(index * step, promoTrack.scrollWidth - promoTrack.clientWidth);
-  promoTrack.scrollTo({ left, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  if (smooth) slideTo(left);
+  else promoTrack.scrollLeft = left;
+}
+
+// Deslize próprio (não depende do "smooth" do navegador, que no iPhone costuma pular direto).
+// Durante a animação o encaixe fica desligado, senão ele puxa o card antes da hora.
+let slideFrame = 0;
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+function slideTo(left, duration = 900) {
+  stopSlide();
+  const from = promoTrack.scrollLeft;
+  const start = performance.now();
+  promoTrack.style.scrollSnapType = 'none';
+  const frame = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    promoTrack.scrollLeft = from + (left - from) * ease(t);
+    if (t < 1) slideFrame = requestAnimationFrame(frame);
+    else stopSlide();
+  };
+  slideFrame = requestAnimationFrame(frame);
+}
+
+function stopSlide() {
+  cancelAnimationFrame(slideFrame);
+  slideFrame = 0;
+  promoTrack.style.scrollSnapType = '';
 }
 
 function updateDots() {
@@ -148,7 +173,10 @@ promoTrack.addEventListener('scroll', () => {
 
 // Se a pessoa mexer no carrossel, a troca automática espera um pouco
 for (const type of ['pointerdown', 'touchstart', 'wheel']) {
-  promoTrack.addEventListener(type, () => (pausedUntil = Date.now() + 10000), { passive: true });
+  promoTrack.addEventListener(type, () => {
+    pausedUntil = Date.now() + 10000;
+    if (slideFrame) stopSlide(); // o dedo manda: interrompe o deslize automático
+  }, { passive: true });
 }
 
 // Troca de card a cada 5 segundos; depois do último volta para o primeiro
@@ -434,7 +462,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300608');
+    const { supabase } = await import('./client.js?v=202610300614');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
