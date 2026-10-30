@@ -8,7 +8,6 @@
   --white: #fff8ea;
   --danger: #ff8a8a;
   --font: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --spine: 30px;
   --gutter: 20px;
 }
 
@@ -49,7 +48,6 @@ body {
   background:
     radial-gradient(120% 60% at 0% 0%, #4a1a7c 0%, transparent 60%),
     var(--plum);
-  padding-right: var(--spine);
 }
 
 .masthead {
@@ -361,38 +359,6 @@ body {
 
 .state {
   color: var(--lilac);
-}
-
-/* Lombada amarela na lateral, como no cardápio impresso */
-.spine {
-  position: fixed;
-  top: 96px;
-  right: 0;
-  z-index: 3;
-  width: var(--spine);
-  padding: 16px 0;
-  border-radius: 12px 0 0 12px;
-  background: var(--gold);
-  color: var(--plum-deep);
-  display: flex;
-  justify-content: center;
-}
-
-.spine:empty,
-.spine span:empty {
-  display: none;
-}
-
-.spine span {
-  writing-mode: vertical-rl;
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  max-height: 60vh;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .colophon {

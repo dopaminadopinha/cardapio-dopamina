@@ -1,4 +1,4 @@
-import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js?v=202610300504';
+import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js?v=202610300540';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -6,7 +6,6 @@ const els = {
   notice: document.getElementById('notice'),
   tabs: document.getElementById('tabs'),
   panel: document.getElementById('panel'),
-  spine: document.getElementById('spine-label'),
   footer: document.getElementById('footer-text'),
 };
 
@@ -100,10 +99,8 @@ function renderPanel(animate = false) {
   const section = currentSection();
   if (!section) {
     els.panel.replaceChildren(h('p', { class: 'state' }, 'O cardápio está sendo atualizado. Volte em instantes.'));
-    els.spine.textContent = '';
     return;
   }
-  els.spine.textContent = section.name;
   // Em abas com dois preços, os itens sem foto usam colunas; o cabeçalho das colunas só aparece se houver algum.
   const columns = section.price2_label && section.items.some((i) => !i.image_url);
   els.panel.replaceChildren(...[
@@ -297,7 +294,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300504');
+    const { supabase } = await import('./client.js?v=202610300540');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
