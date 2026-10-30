@@ -90,20 +90,35 @@ body {
 }
 
 .promo-banner {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
   margin: 0 0 14px;
-  padding: 0 var(--gutter);
+}
+
+/* Carrossel: um card por vez, com uma pontinha do próximo aparecendo na lateral */
+.promo-track {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 0 0 var(--gutter);
+  scroll-padding: 0 var(--gutter);
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
 
-.promo-banner::-webkit-scrollbar {
+.promo-track::-webkit-scrollbar {
   display: none;
 }
 
+/* Espaço no fim (soma com o gap = margem lateral) para o último card encaixar igual aos outros */
+.promo-track::after {
+  content: '';
+  flex: 0 0 calc(var(--gutter) - 6px);
+}
+
+/* O card ocupa a largura do conteúdo; o próximo aparece só como uma pontinha na margem */
 .promo-card {
-  flex: 1 0 min(100%, 300px);
+  flex: 0 0 calc(100% - var(--gutter));
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -121,6 +136,27 @@ body {
   border-style: solid;
   background: var(--gold);
   color: var(--plum-deep);
+}
+
+.promo-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.promo-dots .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(255 248 234 / 0.3);
+  transition: background-color 0.2s, width 0.2s;
+}
+
+.promo-dots .dot.is-active {
+  width: 14px;
+  border-radius: 3px;
+  background: var(--gold);
 }
 
 .promo-tag {

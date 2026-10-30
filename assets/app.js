@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610300548';
+} from './shared.js?v=202610300602';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -62,33 +62,102 @@ function promoTarget(promo) {
   return promo.item_ids ? `${name} selecionados` : `Todos os ${name.toLowerCase()}`;
 }
 
-function renderPromoBanner() {
-  if (!currentMenu) return;
+const promoTrack = document.getElementById('promo-track');
+const promoDots = document.getElementById('promo-dots');
+let bannerKey = '';
+let bannerIndex = 0;
+let pausedUntil = 0;
+
+function currentPromos() {
   const now = barNow();
   const visible = new Set(sections.map((s) => s.id));
-  const promos = (currentMenu.promotions ?? [])
+  return (currentMenu.promotions ?? [])
     .filter((p) => visible.has(p.category_id))
     .map((p) => ({ promo: p, status: promotionStatus(p, now) }))
     .filter(({ status }) => status.active || status.startsIn !== undefined)
     .sort((a, b) => Number(b.status.active) - Number(a.status.active));
-
-  els.promos.hidden = promos.length === 0;
-  els.promos.replaceChildren(...promos.map(({ promo, status }) => {
-    const slug = sections.find((s) => s.id === promo.category_id)?.slug;
-    return h('button', {
-      type: 'button',
-      class: `promo-card${status.active ? ' is-live' : ''}`,
-      onclick: () => slug && select(slug),
-    },
-      h('span', { class: 'promo-tag' }, status.active ? 'Promoção agora' : `Hoje das ${formatTime(promo.start_time)} às ${formatTime(promo.end_time)}`),
-      h('span', { class: 'promo-name' }, promo.name),
-      h('span', { class: 'promo-offer' }, `${promoTarget(promo)} por ${formatPrice(promo.price)}`),
-      h('span', { class: 'promo-timer' },
-        status.active ? 'termina em ' : 'começa em ',
-        h('strong', { class: 'promo-clock' }, formatCountdown(status.active ? status.endsIn : status.startsIn))),
-    );
-  }));
 }
+
+const promoTagText = (promo, status) =>
+  status.active ? 'Promoção agora' : `Hoje das ${formatTime(promo.start_time)} às ${formatTime(promo.end_time)}`;
+
+// Monta os cards só quando a lista muda; a cada segundo atualiza apenas os cronômetros,
+// para não atrapalhar quem está arrastando o carrossel.
+function renderPromoBanner() {
+  if (!currentMenu) return;
+  const promos = currentPromos();
+  const key = promos.map(({ promo, status }) => promo.id + (status.active ? '+' : '-')).join();
+  els.promos.hidden = promos.length === 0;
+
+  if (key !== bannerKey) {
+    bannerKey = key;
+    promoTrack.replaceChildren(...promos.map(({ promo, status }) => {
+      const slug = sections.find((s) => s.id === promo.category_id)?.slug;
+      return h('button', {
+        type: 'button',
+        class: `promo-card${status.active ? ' is-live' : ''}`,
+        dataset: { id: promo.id },
+        onclick: () => slug && select(slug),
+      },
+        h('span', { class: 'promo-tag' }, promoTagText(promo, status)),
+        h('span', { class: 'promo-name' }, promo.name),
+        h('span', { class: 'promo-offer' }, `${promoTarget(promo)} por ${formatPrice(promo.price)}`),
+        h('span', { class: 'promo-timer' },
+          status.active ? 'termina em ' : 'começa em ',
+          h('strong', { class: 'promo-clock' }, '')),
+      );
+    }));
+    promoDots.hidden = promos.length < 2;
+    promoDots.replaceChildren(...promos.map(() => h('span', { class: 'dot' })));
+    bannerIndex = Math.min(bannerIndex, Math.max(0, promos.length - 1));
+    scrollToPromo(bannerIndex, false);
+  }
+
+  promos.forEach(({ promo, status }) => {
+    const clock = promoTrack.querySelector(`[data-id="${promo.id}"] .promo-clock`);
+    if (clock) clock.textContent = formatCountdown(status.active ? status.endsIn : status.startsIn);
+  });
+  updateDots();
+}
+
+function promoStep() {
+  const card = promoTrack.firstElementChild;
+  if (!card) return 0;
+  return card.offsetWidth + parseFloat(getComputedStyle(promoTrack).columnGap || 0);
+}
+
+function scrollToPromo(index, smooth = true) {
+  const step = promoStep();
+  if (!step) return;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const left = Math.min(index * step, promoTrack.scrollWidth - promoTrack.clientWidth);
+  promoTrack.scrollTo({ left, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+}
+
+function updateDots() {
+  [...promoDots.children].forEach((dot, i) => dot.classList.toggle('is-active', i === bannerIndex));
+}
+
+promoTrack.addEventListener('scroll', () => {
+  const step = promoStep();
+  if (!step) return;
+  bannerIndex = Math.min(promoTrack.children.length - 1, Math.round(promoTrack.scrollLeft / step));
+  updateDots();
+}, { passive: true });
+
+// Se a pessoa mexer no carrossel, a troca automática espera um pouco
+for (const type of ['pointerdown', 'touchstart', 'wheel']) {
+  promoTrack.addEventListener(type, () => (pausedUntil = Date.now() + 10000), { passive: true });
+}
+
+// Troca de card a cada 5 segundos; depois do último volta para o primeiro
+setInterval(() => {
+  const count = promoTrack.children.length;
+  if (count < 2 || els.promos.hidden || document.hidden || Date.now() < pausedUntil) return;
+  bannerIndex = (bannerIndex + 1) % count;
+  scrollToPromo(bannerIndex);
+  updateDots();
+}, 5000);
 
 // A cada segundo: atualiza os cronômetros e, quando uma promoção começa ou acaba, os preços.
 setInterval(() => {
@@ -364,7 +433,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300548');
+    const { supabase } = await import('./client.js?v=202610300602');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
