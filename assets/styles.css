@@ -341,10 +341,10 @@ body {
 
 .photo-hint {
   display: inline-block;
-  width: 0.95em;
-  height: 0.95em;
+  width: 1.1em;
+  height: 1.1em;
   margin-left: 6px;
-  color: var(--lilac);
+  color: var(--gold-soft);
   vertical-align: -0.1em;
 }
 
