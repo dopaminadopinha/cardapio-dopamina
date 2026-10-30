@@ -1,25 +1,4 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
-
-// Chave de edição: vem do link secreto (admin.html#chave=...) e fica guardada neste aparelho.
-// Só a página de edição usa; o cardápio público nunca envia a chave.
-function readEditKey() {
-  if (!document.body.classList.contains('admin-page')) return null;
-  const fromLink = new URLSearchParams(location.hash.slice(1)).get('chave');
-  try {
-    if (fromLink) localStorage.setItem('menu-edit-key', fromLink);
-    return fromLink || localStorage.getItem('menu-edit-key');
-  } catch {
-    return fromLink;
-  }
-}
-
-export const editKey = readEditKey();
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false },
-  global: { headers: editKey ? { 'x-menu-key': editKey } : {} },
-});
 
 export const BADGES = {
   novo: 'Novo',
@@ -68,13 +47,20 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
-export async function fetchMenu() {
+// Busca direto pela API REST, sem a biblioteca do Supabase: o cardápio aparece bem mais rápido no celular.
+export async function fetchMenu(headers = {}) {
+  const get = async (path) => {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: { apikey: SUPABASE_KEY, ...headers },
+      cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`Falha ao carregar ${path}: ${response.status}`);
+    return response.json();
+  };
   const [settings, categories, items] = await Promise.all([
-    supabase.from('menu_settings').select('*').eq('id', 1).maybeSingle(),
-    supabase.from('menu_categories').select('*').order('position').order('created_at'),
-    supabase.from('menu_items').select('*').order('position').order('created_at'),
+    get('menu_settings?select=*&id=eq.1'),
+    get('menu_categories?select=*&order=position.asc,created_at.asc'),
+    get('menu_items?select=*&order=position.asc,created_at.asc'),
   ]);
-  const error = settings.error || categories.error || items.error;
-  if (error) throw error;
-  return { settings: settings.data ?? {}, categories: categories.data, items: items.data };
+  return { settings: settings[0] ?? {}, categories, items };
 }

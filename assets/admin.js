@@ -1,4 +1,5 @@
-import { supabase, editKey, fetchMenu, formatPrice, parsePrice, h, BADGES } from './shared.js';
+import { supabase, editKey } from './client.js';
+import { fetchMenu, formatPrice, parsePrice, h, BADGES } from './shared.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,7 +40,7 @@ async function start() {
 
 async function reload() {
   try {
-    Object.assign(state, await fetchMenu());
+    Object.assign(state, await fetchMenu({ 'x-menu-key': editKey }));
     const valid = state.view === 'abas' || state.view === 'avisos' || state.categories.some((c) => c.id === state.view);
     if (!valid) state.view = state.categories[0]?.id ?? 'abas';
     render();
@@ -167,7 +168,7 @@ function renderItemCard(item, index, list) {
 
   card.append(
     h('div', { class: 'card-main' },
-      item.image_url ? h('img', { class: 'card-thumb', src: item.image_url, alt: '', loading: 'lazy' }) : null,
+      item.image_url ? h('img', { class: 'card-thumb', src: item.thumb_url || item.image_url, alt: '', loading: 'lazy' }) : null,
       h('button', { type: 'button', class: 'card-title', onclick: () => openItem(item) },
         h('strong', {}, item.name),
         item.detail ? h('span', {}, ` ${item.detail}`) : null,
@@ -428,7 +429,7 @@ $('photo-remove').addEventListener('click', () => {
 });
 
 // Reduz a foto do celular (vários MB) para ~1200px em JPEG antes de enviar.
-async function shrinkImage(file, max = 1200) {
+async function shrinkImage(file, max = 1200, quality = 0.82) {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -440,7 +441,7 @@ async function shrinkImage(file, max = 1200) {
     canvas.height = Math.round(img.naturalHeight * scale);
     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
     return await new Promise((resolve, reject) =>
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Falha ao converter a foto'))), 'image/jpeg', 0.82),
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Falha ao converter a foto'))), 'image/jpeg', quality),
     );
   } finally {
     URL.revokeObjectURL(url);
@@ -452,21 +453,28 @@ function photoPath(url) {
   return url?.includes(marker) ? url.slice(url.indexOf(marker) + marker.length) : null;
 }
 
-// Aplica a foto pendente ao item já salvo e devolve o novo image_url.
+// Aplica a foto pendente ao item já salvo: envia a foto grande (para abrir) e uma
+// miniatura leve (para a lista), e apaga as antigas.
 async function savePhoto(item) {
-  if (!photo.file && !photo.remove) return item.image_url;
-  const oldPath = photoPath(item.image_url);
-  let imageUrl = null;
+  if (!photo.file && !photo.remove) return;
+  const oldPaths = [photoPath(item.image_url), photoPath(item.thumb_url)].filter(Boolean);
+  const urls = { image_url: null, thumb_url: null };
   if (photo.file) {
-    const blob = await shrinkImage(photo.file);
-    const path = `${item.id}/${Date.now()}.jpg`;
-    const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' });
-    if (error) throw error;
-    imageUrl = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+    const stamp = Date.now();
+    const bucket = supabase.storage.from(PHOTO_BUCKET);
+    const versions = [
+      ['image_url', `${item.id}/${stamp}.jpg`, await shrinkImage(photo.file, 1200, 0.82)],
+      ['thumb_url', `${item.id}/${stamp}-p.jpg`, await shrinkImage(photo.file, 360, 0.78)],
+    ];
+    for (const [key, path, blob] of versions) {
+      const { error } = await bucket.upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+      if (error) throw error;
+      urls[key] = bucket.getPublicUrl(path).data.publicUrl;
+    }
   }
-  if (!(await update('menu_items', item.id, { image_url: imageUrl }))) throw new Error('Falha ao salvar a foto');
-  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
-  return imageUrl;
+  if (!(await update('menu_items', item.id, urls))) throw new Error('Falha ao salvar a foto');
+  Object.assign(item, urls);
+  if (oldPaths.length) await supabase.storage.from(PHOTO_BUCKET).remove(oldPaths);
 }
 
 function openItem(item, categoryId) {
@@ -562,7 +570,7 @@ itemForm.addEventListener('submit', async (event) => {
   editing = saved;
   submitButton.disabled = true;
   try {
-    saved.image_url = await savePhoto(saved);
+    await savePhoto(saved);
   } catch (photoError) {
     console.error(photoError);
     submitButton.disabled = false;
@@ -584,8 +592,8 @@ $('item-delete').addEventListener('click', async () => {
   if (!editing || !confirm(`Excluir "${editing.name} ${editing.detail}"? Não dá para desfazer.`.replace(' "?', '"?'))) return;
   const { error } = await supabase.from('menu_items').delete().eq('id', editing.id);
   if (error) return formError('Não foi possível excluir.');
-  const oldPath = photoPath(editing.image_url);
-  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
+  const oldPaths = [photoPath(editing.image_url), photoPath(editing.thumb_url)].filter(Boolean);
+  if (oldPaths.length) await supabase.storage.from(PHOTO_BUCKET).remove(oldPaths);
   state.items = state.items.filter((i) => i.id !== editing.id);
   dialog.close();
   toast('Item excluído');

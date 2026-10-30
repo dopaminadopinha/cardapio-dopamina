@@ -42,6 +42,7 @@ create table if not exists public.menu_items (
   price numeric(10, 2) not null default 0 check (price >= 0),
   price2 numeric(10, 2) check (price2 >= 0),
   image_url text,
+  thumb_url text,
   promo_price numeric(10, 2) check (promo_price >= 0),
   badge text check (badge in ('novo', 'mais_pedido', 'promo')),
   available boolean not null default true,

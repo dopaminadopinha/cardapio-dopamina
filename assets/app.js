@@ -1,4 +1,4 @@
-import { supabase, fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js';
+import { fetchMenu, formatPrice, slugify, h, BADGES } from './shared.js';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -14,28 +14,51 @@ let sections = [];
 let firstLoad = true;
 let activeSlug = decodeURIComponent(location.hash.slice(1));
 
+const CACHE_KEY = 'menu-cache-v1';
+let lastJson = '';
+
+function show(menu) {
+  const { settings, categories, items } = menu;
+  sections = categories
+    .filter((c) => c.visible)
+    .map((c) => ({
+      ...c,
+      slug: slugify(c.name),
+      items: items.filter((i) => i.category_id === c.id && i.visible),
+    }))
+    .filter((c) => c.items.length > 0);
+  renderHeader(settings);
+  renderTabs();
+  renderPanel(firstLoad);
+  firstLoad = false;
+}
+
 async function load() {
   try {
-    const { settings, categories, items } = await fetchMenu();
-    // Filtra de novo aqui: se o dono estiver logado neste aparelho, o banco devolve também o que está escondido.
-    sections = categories
-      .filter((c) => c.visible)
-      .map((c) => ({
-        ...c,
-        slug: slugify(c.name),
-        items: items.filter((i) => i.category_id === c.id && i.visible),
-      }))
-      .filter((c) => c.items.length > 0);
-    renderHeader(settings);
-    renderTabs();
-    renderPanel(firstLoad);
-    firstLoad = false;
+    const menu = await fetchMenu();
+    const json = JSON.stringify(menu);
+    if (json === lastJson) return; // nada mudou desde o que já está na tela
+    lastJson = json;
+    show(menu);
+    try {
+      localStorage.setItem(CACHE_KEY, json);
+    } catch {}
   } catch (error) {
     console.error(error);
     if (!sections.length) {
       els.panel.replaceChildren(h('p', { class: 'state' }, 'Não foi possível carregar o cardápio. Verifique sua conexão e recarregue a página.'));
     }
   }
+}
+
+// Na volta ao cardápio, mostra na hora a última versão guardada neste celular e atualiza em seguida.
+function showCached() {
+  try {
+    const json = localStorage.getItem(CACHE_KEY);
+    if (!json) return;
+    lastJson = json;
+    show(JSON.parse(json));
+  } catch {}
 }
 
 function renderHeader(settings) {
@@ -124,7 +147,7 @@ function renderItem(item, section) {
           onclick: () => openPhoto(item),
         },
           body,
-          h('img', { class: 'item-photo', src: item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
+          h('img', { class: 'item-photo', src: item.thumb_url || item.image_url, alt: '', loading: 'lazy', decoding: 'async' }),
         )
       : h('div', { class: 'item-row' }, body),
   );
@@ -233,13 +256,22 @@ function scheduleReload() {
   reloadTimer = setTimeout(load, 400);
 }
 
-supabase
-  .channel('cardapio')
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
-  .subscribe();
-
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) scheduleReload();
 });
 
-load();
+showCached();
+load().then(startLiveUpdates);
+
+// Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
+async function startLiveUpdates() {
+  try {
+    const { supabase } = await import('./client.js');
+    supabase
+      .channel('cardapio')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
+      .subscribe();
+  } catch (error) {
+    console.error(error); // sem tempo real, o cardápio ainda atualiza ao voltar para a página
+  }
+}
