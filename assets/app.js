@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610300602';
+} from './shared.js?v=202610300608';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -59,7 +59,8 @@ function withPromotions(item, running) {
 function promoTarget(promo) {
   const category = currentMenu.categories.find((c) => c.id === promo.category_id);
   const name = category?.name ?? '';
-  return promo.item_ids ? `${name} selecionados` : `Todos os ${name.toLowerCase()}`;
+  // Evita concordância errada ("Todos os cervejas"): usa o nome da aba como está
+  return promo.item_ids ? `${name}: itens selecionados` : name;
 }
 
 const promoTrack = document.getElementById('promo-track');
@@ -433,7 +434,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300602');
+    const { supabase } = await import('./client.js?v=202610300608');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
