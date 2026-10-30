@@ -726,3 +726,11 @@ code {
 input[type='time'] {
   color-scheme: dark;
 }
+
+.promo-image-preview {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  object-fit: cover;
+  border-radius: 12px;
+  background: var(--plum-deep);
+}

@@ -1,8 +1,8 @@
-import { supabase, editKey } from './client.js?v=202610300614';
+import { supabase, editKey } from './client.js?v=202610302003';
 import {
   fetchMenu, formatPrice, parsePrice, h, BADGES,
   WEEKDAYS, barNow, promotionStatus, formatTime,
-} from './shared.js?v=202610300614';
+} from './shared.js?v=202610302003';
 
 const $ = (id) => document.getElementById(id);
 
@@ -466,6 +466,47 @@ function renderPromotionsView() {
 }
 
 const promoDialog = $('promo-dialog');
+let promoImage = { file: null, remove: false }; // imagem pendente até salvar
+
+function showPromoImage(url) {
+  const preview = $('promo-image-preview');
+  preview.hidden = !url;
+  if (url) preview.src = url;
+  else preview.removeAttribute('src');
+  $('promo-image-remove').hidden = !url;
+  $('promo-image-label').textContent = url ? 'Trocar imagem' : 'Escolher imagem';
+}
+
+$('promo-image-input').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  promoImage = { file, remove: false };
+  showPromoImage(URL.createObjectURL(file));
+});
+
+$('promo-image-remove').addEventListener('click', () => {
+  promoImage = { file: null, remove: true };
+  $('promo-image-input').value = '';
+  showPromoImage(null);
+});
+
+// Envia (ou remove) a imagem de fundo da promoção já salva e apaga a anterior.
+async function savePromoImage(promo) {
+  if (!promoImage.file && !promoImage.remove) return;
+  const oldPath = photoPath(promo.image_url);
+  let imageUrl = null;
+  if (promoImage.file) {
+    const bucket = supabase.storage.from(PHOTO_BUCKET);
+    const path = `promos/${promo.id}/${Date.now()}.jpg`;
+    const blob = await shrinkImage(promoImage.file, 1500, 0.85);
+    const { error } = await bucket.upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+    if (error) throw error;
+    imageUrl = bucket.getPublicUrl(path).data.publicUrl;
+  }
+  if (!(await update('menu_promotions', promo.id, { image_url: imageUrl }))) throw new Error('Falha ao salvar a imagem');
+  promo.image_url = imageUrl;
+  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
+}
 const promoForm = $('promo-form');
 let editingPromo = null;
 
@@ -501,6 +542,9 @@ function openPromotion(promo) {
   f.category_id.value = promo?.category_id ?? categoriesSorted()[0]?.id;
   f.all_items.checked = !promo?.item_ids;
   renderPromoItems(promo?.item_ids ?? null);
+  promoImage = { file: null, remove: false };
+  $('promo-image-input').value = '';
+  showPromoImage(promo?.image_url ?? null);
   promoDialog.showModal();
 }
 
@@ -545,10 +589,19 @@ promoForm.addEventListener('submit', async (event) => {
     console.error(error);
     return promoError('Não salvou. Verifique a conexão e tente de novo.');
   }
-  if (editingPromo) Object.assign(editingPromo, data);
-  else state.promotions.push(data);
+  const wasNew = !editingPromo;
+  const saved = editingPromo ? Object.assign(editingPromo, data) : data;
+  if (wasNew) state.promotions.push(saved);
+  editingPromo = saved;
+  try {
+    await savePromoImage(saved);
+  } catch (imageError) {
+    console.error(imageError);
+    render();
+    return promoError('A promoção foi salva, mas a imagem não. Tente enviar a imagem de novo.');
+  }
   promoDialog.close();
-  toast(editingPromo ? 'Promoção salva' : 'Promoção criada');
+  toast(wasNew ? 'Promoção criada' : 'Promoção salva');
   render();
 });
 
@@ -556,6 +609,8 @@ $('promo-delete').addEventListener('click', async () => {
   if (!editingPromo || !confirm(`Excluir a promoção "${editingPromo.name}"?`)) return;
   const { error } = await supabase.from('menu_promotions').delete().eq('id', editingPromo.id);
   if (error) return promoError('Não foi possível excluir.');
+  const oldPath = photoPath(editingPromo.image_url);
+  if (oldPath) await supabase.storage.from(PHOTO_BUCKET).remove([oldPath]);
   state.promotions = state.promotions.filter((p) => p.id !== editingPromo.id);
   promoDialog.close();
   toast('Promoção excluída');

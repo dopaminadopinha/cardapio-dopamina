@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610300614';
+} from './shared.js?v=202610302003';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -87,7 +87,7 @@ const promoTagText = (promo, status) =>
 function renderPromoBanner() {
   if (!currentMenu) return;
   const promos = currentPromos();
-  const key = promos.map(({ promo, status }) => promo.id + (status.active ? '+' : '-')).join();
+  const key = promos.map(({ promo, status }) => promo.id + (status.active ? '+' : '-') + (promo.image_url ?? '')).join();
   els.promos.hidden = promos.length === 0;
 
   if (key !== bannerKey) {
@@ -96,8 +96,9 @@ function renderPromoBanner() {
       const slug = sections.find((s) => s.id === promo.category_id)?.slug;
       return h('button', {
         type: 'button',
-        class: `promo-card${status.active ? ' is-live' : ''}`,
+        class: `promo-card${status.active ? ' is-live' : ''}${promo.image_url ? ' has-image' : ''}`,
         dataset: { id: promo.id },
+        style: promo.image_url ? `--promo-image: url(${JSON.stringify(promo.image_url)})` : null,
         onclick: () => slug && select(slug),
       },
         h('span', { class: 'promo-tag' }, promoTagText(promo, status)),
@@ -462,7 +463,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610300614');
+    const { supabase } = await import('./client.js?v=202610302003');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)

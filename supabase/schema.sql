@@ -281,6 +281,8 @@ create table if not exists public.menu_promotions (
   -- null = todos os itens da aba
   item_ids uuid[],
   active boolean not null default true,
+  -- imagem de fundo do card (1500 × 500)
+  image_url text,
   created_at timestamptz not null default now()
 );
 

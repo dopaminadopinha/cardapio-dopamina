@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css?v=202610300614">
-  <link rel="stylesheet" href="assets/admin.css?v=202610300614">
-  <script type="module" src="assets/admin.js?v=202610300614"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=202610302003">
+  <link rel="stylesheet" href="assets/admin.css?v=202610302003">
+  <script type="module" src="assets/admin.js?v=202610302003"></script>
 </head>
 <body class="admin-page">
   <header class="admin-bar">
@@ -138,6 +138,17 @@
       </label>
       <label class="check"><input name="all_items" type="checkbox" checked> Todos os itens da aba</label>
       <div id="promo-items" class="promo-items" hidden></div>
+      <div class="field">Imagem de fundo do card (opcional)
+        <span class="muted small">Crie no Canva com 1500 × 500 px. Deixe a metade esquerda mais limpa: é onde vai o texto.</span>
+        <img id="promo-image-preview" class="promo-image-preview" alt="" hidden>
+        <div class="photo-actions">
+          <label class="btn btn-ghost btn-small photo-pick">
+            <span id="promo-image-label">Escolher imagem</span>
+            <input id="promo-image-input" type="file" accept="image/*">
+          </label>
+          <button id="promo-image-remove" class="btn btn-ghost btn-small" type="button" hidden>Remover imagem</button>
+        </div>
+      </div>
       <label class="check"><input name="active" type="checkbox" checked> Promoção ligada</label>
       <p id="promo-error" class="form-error" role="alert" hidden></p>
       <div class="sheet-actions">

@@ -132,6 +132,33 @@ body {
   cursor: pointer;
 }
 
+/* Todos os cards na mesma proporção 3:1 (imagem do Canva: 1500 × 500 px) */
+.promo-card {
+  aspect-ratio: 3 / 1;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Card com imagem de fundo: sombra escura à esquerda para o texto continuar legível */
+.promo-card.has-image,
+.promo-card.has-image.is-live {
+  border: 0;
+  background:
+    linear-gradient(90deg, rgb(20 4 36 / 0.88) 0%, rgb(20 4 36 / 0.55) 45%, rgb(20 4 36 / 0) 75%),
+    var(--promo-image) center / cover no-repeat,
+    var(--plum-deep);
+  color: var(--white);
+}
+
+.promo-card.has-image .promo-name {
+  color: var(--gold);
+}
+
+.promo-card.has-image .promo-tag {
+  color: var(--gold-soft);
+  opacity: 1;
+}
+
 .promo-card.is-live {
   border-style: solid;
   background: var(--gold);
