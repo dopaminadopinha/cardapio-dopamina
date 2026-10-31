@@ -10,7 +10,7 @@ Cardápio para o link da bio do Instagram. O cliente só vê o cardápio; você 
 
 ## No ar
 
-- Cardápio: https://dopaminadopinha.github.io/cardapio-dopamina/ (GitHub Pages, branch `gh-pages`)
+- Cardápio: https://dopaminagastrobar.com.br/ (GitHub Pages, branch `gh-pages`; o arquivo `CNAME` aponta o domínio)
 - Banco: projeto `cardapio-dopamina` no Supabase (`supabase/schema.sql` recria tudo em outro projeto)
 
 ## Link de edição
@@ -30,3 +30,15 @@ O site é estático, sem build. Rode `./publicar.sh "mensagem"`: ele carimba uma
 ## Terceiros
 
 `assets/vendor/bg-removal.js` é o [@imgly/background-removal](https://github.com/imgly/background-removal-js) 1.4.5 empacotado num arquivo só (licença AGPL-3.0, em `assets/vendor/bg-removal-LICENSE.md`). Ele só é baixado quando alguém toca em "Trocar fundo por branco" na edição; os modelos vêm do CDN da IMG.LY (~55 MB na primeira vez).
+
+## Domínio (Registro.br)
+
+Zona DNS no Registro.br apontando para o GitHub Pages:
+
+| Tipo | Nome | Valor |
+|---|---|---|
+| A | (vazio) | 185.199.108.153 |
+| A | (vazio) | 185.199.109.153 |
+| A | (vazio) | 185.199.110.153 |
+| A | (vazio) | 185.199.111.153 |
+| CNAME | www | dopaminadopinha.github.io |
