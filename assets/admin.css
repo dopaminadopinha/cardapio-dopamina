@@ -1,3 +1,11 @@
+/* Fundo preto, igual ao cardápio do cliente */
+.admin-page {
+  --plum: #141416;
+  --plum-deep: #000;
+  --plum-line: rgb(255 255 255 / 0.12);
+  --lilac: #b3adbd;
+}
+
 .admin-page {
   min-height: 100dvh;
   background: var(--plum-deep);
