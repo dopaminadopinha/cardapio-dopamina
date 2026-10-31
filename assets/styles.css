@@ -129,7 +129,7 @@ body {
   flex-direction: column;
   gap: 2px;
   padding: 12px 14px;
-  border: 1.5px dashed var(--gold);
+  border: 1.5px dashed #9d4dff;
   border-radius: 14px;
   background: transparent;
   color: var(--white);
@@ -167,6 +167,7 @@ body {
 
 .promo-card.is-live {
   border-style: solid;
+  border-color: var(--gold);
   background: var(--gold);
   color: var(--plum-deep);
 }
@@ -189,7 +190,7 @@ body {
 .promo-dots .dot.is-active {
   width: 14px;
   border-radius: 3px;
-  background: var(--gold);
+  background: #9d4dff;
 }
 
 .promo-tag {
