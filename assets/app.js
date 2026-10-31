@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610311601';
+} from './shared.js?v=202610311607';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -245,24 +245,59 @@ function currentSection() {
   return sections.find((s) => s.slug === activeSlug) ?? sections[0];
 }
 
+// Cápsula que marca a aba aberta: é um elemento só, que desliza de uma aba para a outra.
+const tabIndicator = h('span', { class: 'tab-indicator', 'aria-hidden': 'true' });
+
 function renderTabs() {
   const current = currentSection();
-  els.tabs.replaceChildren(
-    ...sections.map((s) =>
-      h('a', {
-        class: 'tab',
-        href: `#${s.slug}`,
-        role: 'tab',
-        'aria-selected': String(s === current),
-        onclick: (event) => {
-          event.preventDefault();
-          select(s.slug);
-        },
-      }, s.name),
-    ),
-  );
-  els.tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  const signature = sections.map((s) => s.slug).join();
+  // Só recria as abas se a lista mudou; trocar de aba apenas move a cápsula
+  if (els.tabs.dataset.signature !== signature) {
+    els.tabs.dataset.signature = signature;
+    els.tabs.replaceChildren(
+      tabIndicator,
+      ...sections.map((s) =>
+        h('a', {
+          class: 'tab',
+          href: `#${s.slug}`,
+          role: 'tab',
+          dataset: { slug: s.slug },
+          onclick: (event) => {
+            event.preventDefault();
+            select(s.slug);
+          },
+        }, s.name),
+      ),
+    );
+    tabIndicator.classList.add('no-anim');
+  }
+  for (const tab of els.tabs.querySelectorAll('.tab')) {
+    tab.setAttribute('aria-selected', String(tab.dataset.slug === current?.slug));
+  }
+  placeIndicator();
+  els.tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
 }
+
+function placeIndicator() {
+  const active = els.tabs.querySelector('.tab[aria-selected="true"]');
+  if (!active) return;
+  tabIndicator.style.width = `${active.offsetWidth}px`;
+  tabIndicator.style.transform = `translateX(${active.offsetLeft}px)`;
+  if (tabIndicator.classList.contains('no-anim')) {
+    void tabIndicator.offsetWidth; // aplica a posição sem animar e libera as próximas animações
+    tabIndicator.classList.remove('no-anim');
+  }
+}
+
+// A largura das abas muda quando a fonte termina de carregar ou a tela gira
+document.fonts?.ready.then(() => {
+  tabIndicator.classList.add('no-anim');
+  placeIndicator();
+});
+window.addEventListener('resize', () => {
+  tabIndicator.classList.add('no-anim');
+  placeIndicator();
+});
 
 function renderPanel(animate = false) {
   const section = currentSection();
@@ -463,7 +498,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610311601');
+    const { supabase } = await import('./client.js?v=202610311607');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
