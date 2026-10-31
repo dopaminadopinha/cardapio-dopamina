@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=202610311851';
+import { SUPABASE_URL, SUPABASE_KEY } from './config.js?v=202610311857';
 
 export const BADGES = {
   novo: 'Novo',
