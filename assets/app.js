@@ -1,7 +1,7 @@
 import {
   fetchMenu, formatPrice, slugify, h, BADGES,
   barNow, promotionStatus, promotionAppliesTo, formatCountdown, formatTime,
-} from './shared.js?v=202610311626';
+} from './shared.js?v=202610311632';
 
 const els = {
   barName: document.getElementById('bar-name'),
@@ -245,187 +245,50 @@ function currentSection() {
   return sections.find((s) => s.slug === activeSlug) ?? sections[0];
 }
 
-/* ---------- Abas em "vidro líquido" ---------- */
-// A gota de vidro (tab-drop) desliza atrás das abas. As abas brancas ganham um "furo" onde a gota
-// está, e uma cópia roxa das abas aparece só dentro dela: a cor "escorre" junto com a gota e, enquanto
-// ela se move, o texto lá dentro aumenta um pouco, como uma lente.
-const tabsGlass = document.querySelector('.tabs-glass');
-const drop = h('span', { class: 'tab-drop', 'aria-hidden': 'true' });
-const tabsRow = h('div', { class: 'tabs-row', role: 'tablist', 'aria-label': 'Seções do cardápio' });
-const inkRow = h('div', { class: 'tabs-ink-row' });
-const ink = h('div', { class: 'tabs-ink', 'aria-hidden': 'true' }, inkRow);
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-
-// Duas bordas com molas diferentes: a da frente é mais rígida, então a gota estica na direção
-// do movimento, passa um pouco do ponto e assenta com elasticidade, como gel.
-const dropState = { l: 0, r: 0, vl: 0, vr: 0, tl: 0, tr: 0, lens: 1, energy: 0, dir: 1, frame: 0, last: 0 };
-let jumpDrop = true;
-
 function renderTabs() {
   const current = currentSection();
+  // As abas só são recriadas quando a lista muda. Recriar no meio do toque tiraria a aba da
+  // página antes de o navegador acionar o interruptor da vibração.
   const signature = sections.map((s) => `${s.slug}:${s.name}`).join('|');
   if (els.tabs.dataset.signature !== signature) {
     els.tabs.dataset.signature = signature;
-    tabsRow.replaceChildren(...sections.map((s) =>
-      h('a', { class: 'tab', href: `#${s.slug}`, role: 'tab', dataset: { slug: s.slug } }, s.name)));
-    inkRow.replaceChildren(...sections.map((s) => h('span', { class: 'tab tab-ink' }, s.name)));
-    if (!els.tabs.contains(tabsRow)) els.tabs.replaceChildren(drop, tabsRow, ink);
-    jumpDrop = true;
+    els.tabs.replaceChildren(
+      ...sections.map((s) =>
+        // Cada aba é o rótulo de um interruptor escondido: o toque real do dedo aciona o
+        // interruptor e o iPhone dá o "tique" de vibração do sistema (veja tapFeedback)
+        h('label', {
+          class: 'tab',
+          for: 'tab-haptic',
+          role: 'tab',
+          tabindex: '0',
+          dataset: { slug: s.slug },
+          onclick: () => {
+            tapFeedback();
+            select(s.slug);
+          },
+          onkeydown: (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            select(s.slug);
+          },
+        }, s.name),
+      ),
+    );
   }
-  for (const tab of tabsRow.children) tab.setAttribute('aria-selected', String(tab.dataset.slug === current?.slug));
-  moveDrop();
-  tabsRow.querySelector('[aria-selected="true"]')
-    ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduceMotion.matches ? 'auto' : 'smooth' });
-}
-
-// Um clique dentro da gota cai no "furo" das abas; por isso o clique é resolvido pela posição.
-els.tabs.addEventListener('click', (event) => {
-  event.preventDefault();
-  const tab = event.target.closest('.tab[data-slug]') ?? tabAt(event.clientX);
-  if (tab) select(tab.dataset.slug);
-});
-
-function tabAt(clientX) {
-  const x = clientX - els.tabs.getBoundingClientRect().left + els.tabs.scrollLeft;
-  return [...tabsRow.children].find((t) => x >= t.offsetLeft && x <= t.offsetLeft + t.offsetWidth);
-}
-
-// Ao tocar, o vidro se ilumina a partir do ponto do dedo
-els.tabs.addEventListener('pointerdown', (event) => {
-  const rect = tabsGlass.getBoundingClientRect();
-  tabsGlass.style.setProperty('--px', `${event.clientX - rect.left}px`);
-  tabsGlass.classList.remove('is-touched');
-  void tabsGlass.offsetWidth;
-  tabsGlass.classList.add('is-touched');
-});
-
-function moveDrop() {
-  const active = tabsRow.querySelector('.tab[aria-selected="true"]');
-  if (!active) return;
-  const d = dropState;
-  d.tl = active.offsetLeft;
-  d.tr = active.offsetLeft + active.offsetWidth;
-  if (jumpDrop || reduceMotion.matches) {
-    jumpDrop = false;
-    Object.assign(d, { l: d.tl, r: d.tr, vl: 0, vr: 0, lens: 1, energy: 0 });
-    paintDrop();
-    return;
+  for (const tab of els.tabs.children) {
+    tab.setAttribute('aria-selected', String(tab.dataset.slug === current?.slug));
   }
-  d.dir = Math.sign(d.tl + d.tr - (d.l + d.r)) || d.dir;
-  if (!d.frame) {
-    d.last = performance.now();
-    d.frame = requestAnimationFrame(stepDrop);
-  }
+  els.tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 
-function stepDrop(now) {
-  const d = dropState;
-  const dt = Math.min(0.05, (now - d.last) / 1000);
-  d.last = now;
-  const lead = d.dir > 0 ? 'r' : 'l';
-  const steps = Math.max(1, Math.ceil(dt * 240));
-  const sub = dt / steps;
-  for (let i = 0; i < steps; i++) {
-    for (const edge of ['l', 'r']) {
-      const stiff = edge === lead ? 330 : 165;
-      const damp = edge === lead ? 23 : 18.5;
-      const accel = stiff * (d[`t${edge}`] - d[edge]) - damp * d[`v${edge}`];
-      d[`v${edge}`] += accel * sub;
-      d[edge] += d[`v${edge}`] * sub;
-    }
-  }
-  const speed = (Math.abs(d.vl) + Math.abs(d.vr)) / 2;
-  d.lens += (Math.min(1.16, 1 + speed / 9000) - d.lens) * Math.min(1, dt * 16);
-  d.energy += (Math.min(1, speed / 1500) - d.energy) * Math.min(1, dt * 9);
-  const settled = ['l', 'r'].every((e) => Math.abs(d[`t${e}`] - d[e]) < 0.3 && Math.abs(d[`v${e}`]) < 4)
-    && d.lens < 1.003 && d.energy < 0.02;
-  if (settled) Object.assign(d, { l: d.tl, r: d.tr, vl: 0, vr: 0, lens: 1, energy: 0, frame: 0 });
-  paintDrop();
-  if (!settled) d.frame = requestAnimationFrame(stepDrop);
+// Vibração curtinha ao tocar numa aba.
+// Android: API de vibração do navegador.
+// iPhone: o Safari não tem essa API; mas tocar num rótulo ligado a um <input switch> faz o
+// próprio iPhone vibrar, como nos interruptores dos Ajustes. Precisa ser o toque de verdade
+// (a Apple bloqueou o clique feito por código no iOS 26.5), por isso a aba é o rótulo.
+function tapFeedback() {
+  navigator.vibrate?.(10);
 }
-
-function paintDrop() {
-  const d = dropState;
-  const style = els.tabs.style;
-  style.setProperty('--dl', `${d.l.toFixed(2)}px`);
-  style.setProperty('--dw', `${Math.max(0, d.r - d.l).toFixed(2)}px`);
-  style.setProperty('--lens', d.lens.toFixed(4));
-  style.setProperty('--energy', d.energy.toFixed(3));
-}
-
-/* ---------- Lente de verdade (só no Chrome/Android) ---------- */
-// O Chrome aceita um filtro SVG como backdrop-filter: um mapa de distorção curva o que passa
-// atrás da barra perto das bordas, como uma lente. Outros navegadores (Safari/iPhone) ficam com
-// o vidro desfocado e os brilhos, que já funcionam em todos.
-const lensSupported = /Chrome\/\d+/.test(navigator.userAgent)
-  && !matchMedia('(prefers-reduced-transparency: reduce)').matches;
-
-function buildLensMap() {
-  if (!lensSupported) return;
-  const w = Math.round(tabsGlass.offsetWidth);
-  const hgt = Math.round(tabsGlass.offsetHeight);
-  if (!w || !hgt) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = hgt;
-  const ctx = canvas.getContext('2d');
-  const image = ctx.createImageData(w, hgt);
-  const radius = hgt / 2;
-  const bezel = Math.min(16, radius);
-  const maxShift = 12; // px
-  for (let y = 0; y < hgt; y++) {
-    for (let x = 0; x < w; x++) {
-      const px = x + 0.5;
-      const py = y + 0.5;
-      // ponto mais próximo no eixo central da cápsula
-      const ax = Math.min(Math.max(px, radius), w - radius);
-      const dx = ax - px;
-      const dy = radius - py;
-      const dist = Math.hypot(dx, dy);
-      const edge = radius - dist; // distância até a borda
-      let red = 128;
-      let green = 128;
-      if (edge > 0 && edge < bezel && dist > 0) {
-        const t = 1 - edge / bezel; // 1 na borda, 0 onde o bisel acaba
-        const m = t * t; // mais forte perto da borda, como uma superfície arredondada
-        red = 128 + (dx / dist) * m * 127;
-        green = 128 + (dy / dist) * m * 127;
-      }
-      const i = (y * w + x) * 4;
-      image.data[i] = red;
-      image.data[i + 1] = green;
-      image.data[i + 2] = 128;
-      image.data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(image, 0, 0);
-  const filter = document.getElementById('tabs-lens');
-  const map = document.getElementById('tabs-lens-map');
-  for (const el of [filter, map]) {
-    el.setAttribute('width', w);
-    el.setAttribute('height', hgt);
-  }
-  map.setAttribute('href', canvas.toDataURL());
-  filter.querySelector('feDisplacementMap').setAttribute('scale', maxShift * 2);
-  tabsGlass.classList.add('has-lens');
-}
-
-// A largura das abas muda quando a fonte termina de carregar; a barra muda de tamanho quando as
-// abas aparecem ou a tela gira (aí a lente precisa de um mapa novo, do tamanho exato da barra)
-function relayoutTabs() {
-  jumpDrop = true;
-  moveDrop();
-}
-document.fonts?.ready.then(relayoutTabs);
-
-let lensFrame = 0;
-new ResizeObserver(() => {
-  cancelAnimationFrame(lensFrame);
-  lensFrame = requestAnimationFrame(() => {
-    relayoutTabs();
-    buildLensMap();
-  });
-}).observe(tabsGlass);
 
 function renderPanel(animate = false) {
   const section = currentSection();
@@ -626,7 +489,7 @@ load().then(startLiveUpdates);
 // Tempo real: a biblioteca do Supabase só é baixada depois que o cardápio já está na tela.
 async function startLiveUpdates() {
   try {
-    const { supabase } = await import('./client.js?v=202610311626');
+    const { supabase } = await import('./client.js?v=202610311632');
     supabase
       .channel('cardapio')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'menu_settings' }, scheduleReload)
