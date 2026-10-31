@@ -278,74 +278,231 @@ body {
   color: var(--plum-deep);
 }
 
-/* Abas do cardápio: uma cápsula de vidro fosco escuro segurando os botões;
-   a aba aberta ganha uma cápsula mais clara por trás (como barras de navegação de apps) */
-/* Abas do cardápio: barra escura meio transparente, meio opaca (como a barra de
-   navegação de apps de eventos), com uma cápsula mais clara que desliza até a aba aberta */
+/* ---------- Abas em vidro líquido ----------
+   Inspirado no Liquid Glass da Apple (lente nas bordas, brilho que acompanha a forma,
+   luz ao toque, elasticidade de gel) e na barra do app Cheers (cápsula que desliza).
+   A lente de verdade só existe no Chrome (classe .has-lens); no Safari fica a versão com luz. */
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.menu-page {
+  --ink-top: #d7a6ff;
+  --ink-mid: #9a3cff;
+  --ink-deep: #6a0ff0;
+  --ink-glow: 146 58 255;
+}
+
 .menu-page .tabs {
   padding: 10px var(--gutter);
 }
 
+/* Escurecimento suave atrás da barra quando o cardápio rola por baixo */
+.menu-page .tabs::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -16px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.38) 62%, rgb(0 0 0 / 0) 100%);
+  pointer-events: none;
+}
+
 .menu-page .tabs-glass {
-  border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.07);
-  background: linear-gradient(180deg, rgb(40 40 45 / 0.8) 0%, rgb(24 24 28 / 0.86) 100%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  backdrop-filter: blur(16px) saturate(140%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.06),
-    0 8px 24px rgb(0 0 0 / 0.55);
+  position: relative;
+  isolation: isolate;
   overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.1) 0%, rgb(255 255 255 / 0.025) 52%, rgb(255 255 255 / 0.05) 100%),
+    rgb(24 24 28 / 0.46);
+  -webkit-backdrop-filter: blur(14px) saturate(190%);
+  backdrop-filter: blur(14px) saturate(190%);
+  box-shadow:
+    inset 0 0 14px rgb(255 255 255 / 0.05),
+    0 10px 30px rgb(0 0 0 / 0.55),
+    0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+.menu-page .tabs-glass.has-lens {
+  backdrop-filter: url(#tabs-lens) blur(7px) saturate(190%);
+}
+
+/* Borda de luz: mais forte em cima à esquerda e embaixo à direita */
+.menu-page .tabs-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(125deg,
+    rgb(255 255 255 / 0.55) 0%,
+    rgb(255 255 255 / 0.16) 20%,
+    rgb(255 255 255 / 0.05) 45%,
+    rgb(255 255 255 / 0.05) 62%,
+    rgb(255 255 255 / 0.2) 85%,
+    rgb(255 255 255 / 0.42) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+
+/* Luz ao toque: nasce debaixo do dedo e se espalha pela barra */
+@property --touch-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 30px;
+}
+
+.menu-page .tabs-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: radial-gradient(var(--touch-r) calc(var(--touch-r) * 0.7) at var(--px, 50%) 50%,
+    rgb(255 255 255 / 0.28), rgb(200 160 255 / 0.1) 55%, transparent 100%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.menu-page .tabs-glass.is-touched::after {
+  animation: glass-touch 0.75s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@keyframes glass-touch {
+  0% {
+    opacity: 0;
+    --touch-r: 24px;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    --touch-r: 260px;
+  }
 }
 
 .menu-page .tabs-track {
   position: relative;
+  display: block;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.menu-page .tabs-row,
+.menu-page .tabs-ink-row {
+  display: flex;
   gap: 2px;
+  width: max-content;
   padding: 4px;
 }
 
-.menu-page .tab {
+/* Abas brancas, com um "furo" onde a gota está (lá dentro aparece a cópia roxa) */
+.menu-page .tabs-row {
   position: relative;
   z-index: 1;
+  clip-path: polygon(evenodd,
+    0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    var(--dl, 0px) 4px,
+    calc(var(--dl, 0px) + var(--dw, 0px)) 4px,
+    calc(var(--dl, 0px) + var(--dw, 0px)) calc(100% - 4px),
+    var(--dl, 0px) calc(100% - 4px),
+    var(--dl, 0px) 4px);
+}
+
+.menu-page .tab,
+.menu-page .tab[aria-selected='true'] {
   padding: 7px 14px;
   border: 0;
+  border-radius: 999px;
   background: transparent;
-  color: rgb(232 232 238 / 0.82);
-  transition: color 0.15s;
+  color: rgb(255 255 255 / 0.8);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+  transition: none;
 }
 
-.menu-page .tab[aria-selected='true'] {
-  background: transparent;
-  color: #b07cff;
+/* Cópia roxa das abas, visível só dentro da gota; aumenta um pouco enquanto a gota se move */
+.menu-page .tabs-ink {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+  clip-path: inset(4px calc(100% - var(--dl, 0px) - var(--dw, 0px)) 4px var(--dl, 0px) round 999px);
 }
 
-.tab-indicator {
-  display: none;
+.menu-page .tabs-ink-row {
+  transform-origin: calc(var(--dl, 0px) + var(--dw, 0px) / 2) 50%;
+  transform: scale(var(--lens, 1));
+  filter:
+    drop-shadow(0 0 4px rgb(var(--ink-glow) / 0.85))
+    drop-shadow(0 0 11px rgb(var(--ink-glow) / 0.5));
 }
 
-.menu-page .tab-indicator {
-  display: block;
+.menu-page .tab-ink {
+  background: linear-gradient(180deg, var(--ink-top) 22%, var(--ink-mid) 52%, var(--ink-deep) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+
+/* A gota de vidro: quase transparente, com reflexo em cima, luz roxa vindo de baixo
+   (como vidro colorido) e um brilho que aumenta enquanto ela se move */
+.menu-page .tab-drop {
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 0;
   z-index: 0;
+  width: var(--dw, 0px);
+  transform: translateX(var(--dl, 0px));
   border-radius: 999px;
-  /* cinza um pouco mais claro que a barra, com um leve tom do roxo da aba aberta */
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0)),
-    color-mix(in srgb, #b07cff 6%, rgb(46 46 52));
+    radial-gradient(130% 100% at 50% 120%, rgb(var(--ink-glow) / calc(0.26 + var(--energy, 0) * 0.22)), transparent 72%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.17) 0%, rgb(255 255 255 / 0.05) 50%, rgb(255 255 255 / 0.03) 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.07),
-    0 1px 3px rgb(0 0 0 / 0.35);
-  /* desliza e passa um pouquinho do ponto antes de assentar */
-  transition:
-    transform 0.42s cubic-bezier(0.34, 1.32, 0.5, 1),
-    width 0.42s cubic-bezier(0.34, 1.32, 0.5, 1);
+    inset 0 0 8px rgb(255 255 255 / 0.06),
+    inset 0 -6px 10px -6px rgb(var(--ink-glow) / 0.45),
+    0 2px 8px rgb(0 0 0 / 0.45),
+    0 0 calc(8px + var(--energy, 0) * 14px) rgb(var(--ink-glow) / calc(0.22 + var(--energy, 0) * 0.3));
+  pointer-events: none;
 }
 
-.menu-page .tab-indicator.no-anim {
-  transition: none;
+.menu-page .tab-drop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(125deg,
+    rgb(255 255 255 / 0.85) 0%,
+    rgb(255 255 255 / 0.25) 24%,
+    rgb(255 255 255 / 0.06) 48%,
+    rgb(255 255 255 / 0.08) 62%,
+    rgb(var(--ink-glow) / 0.55) 82%,
+    rgb(230 200 255 / 0.7) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .menu-page .tabs-glass,
+  .menu-page .tabs-glass.has-lens {
+    background: rgb(28 28 32);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 .panel {

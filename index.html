@@ -7,13 +7,13 @@
   <title>Cardápio</title>
   <meta name="description" content="Cardápio do bar, sempre com os preços do dia.">
   <link rel="preconnect" href="https://zpwquzllpdqrpmwniupn.supabase.co" crossorigin>
-  <link rel="modulepreload" href="assets/shared.js?v=202610311607">
-  <link rel="modulepreload" href="assets/config.js?v=202610311607">
+  <link rel="modulepreload" href="assets/shared.js?v=202610311626">
+  <link rel="modulepreload" href="assets/config.js?v=202610311626">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css?v=202610311607">
-  <script type="module" src="assets/app.js?v=202610311607"></script>
+  <link rel="stylesheet" href="assets/styles.css?v=202610311626">
+  <script type="module" src="assets/app.js?v=202610311626"></script>
 </head>
 <body class="menu-page">
   <header class="masthead">
@@ -29,9 +29,17 @@
     <div id="promo-dots" class="promo-dots" aria-hidden="true"></div>
   </section>
 
+  <svg class="svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="tabs-lens" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse"
+            x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+      <feImage id="tabs-lens-map" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map" />
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
   <nav class="tabs" aria-label="Seções do cardápio">
     <div class="tabs-glass">
-      <div id="tabs" class="tabs-track" role="tablist"></div>
+      <div id="tabs" class="tabs-track"></div>
     </div>
   </nav>
 
